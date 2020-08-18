@@ -1,0 +1,25 @@
+{
+  "name": "browser-tabs",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Jacob Bovee <boveejacob@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "bundle-popup": "watchify -t -v babelify lib/popup/popup.js -o build/popup.bundle.js",
+    "bundle-folder": "watchify -t -v babelify lib/folder/folder.js -o build/folder.bundle.js",
+    "watch": "tsc -w",
+    "start": "concurrently \"yarn watch\" \"yarn bundle-popup\" \"yarn bundle-folder\""
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.122",
+    "babelify": "^10.0.0",
+    "concurrently": "^5.2.0",
+    "tsc": "^1.20150623.0",
+    "typescript": "^3.9.7",
+    "watchify": "^3.11.1"
+  },
+  "dependencies": {
+    "preact": "^10.4.7"
+  }
+}

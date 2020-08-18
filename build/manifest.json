@@ -1,0 +1,15 @@
+{
+    "name": "Better tabs",
+    "description": "A better tab manager",
+    "manifest_version": 2,
+    "version": "1.0.0",
+    "browser_action": {
+        "default_popup": "index.html"
+    },
+    "permissions": [
+        "processes",
+        "tabs",
+        "storage",
+        "contextMenus"
+    ]
+}
