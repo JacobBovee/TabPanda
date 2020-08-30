@@ -4,8 +4,9 @@ import TabTree from './components/tabTree';
 import ActionItems from './components/actionItems'
 import { TabFolder, TabManager } from '../manager/tabManager';
 import ContextMenu from './components/contextMenu';
-import { findParentWithMatchingAttribute } from '../manager/utils';
+import { findParentWithMatchingAttribute } from '../utils';
 import Warning from './components/warning';
+import { DATA_TAB_ID_ATTRIBUTE_NAME, DATA_TAB_INDEX_ATTRIBUTE_NAME } from '../constants';
 
 interface IProps {
     tabManager: TabManager;
@@ -17,7 +18,7 @@ interface IState {
     warning?: boolean;
 }
 
-class Popup extends Component<IProps, IState> {
+export default class Popup extends Component<IProps, IState> {
     constructor(props: IProps) {
         super(props);
 
@@ -27,7 +28,6 @@ class Popup extends Component<IProps, IState> {
         this.saveAction = this.saveAction.bind(this);
         this.cancelAction = this.cancelAction.bind(this);
         this.newFolderAction = this.newFolderAction.bind(this);
-        this.getFolderFromEvent = this.getFolderFromEvent.bind(this);
         this.updateState = this.updateState.bind(this);
     }
 
@@ -76,25 +76,6 @@ class Popup extends Component<IProps, IState> {
         this.setTabFolders(tabManager.tabFolders);
     }
 
-    getTabFromEvent(event: MouseEvent) {
-        const rootElement = (event.target as Element);
-        const tabFolder = this.getFolderFromEvent(event);
-        const tabElement = findParentWithMatchingAttribute(rootElement, 'data-tab-id');
-        
-        const tabIndex = (tabElement as Element).getAttribute('data-tab-id')
-        
-        return tabFolder.tabs[tabIndex ? parseInt(tabIndex) : 0];
-    }
-
-    getFolderFromEvent(event: MouseEvent) {
-        const { tabManager } = this.props;
-        const rootElement = (event.target as Element);
-        const folderElement = findParentWithMatchingAttribute(rootElement, 'data-folder');
-        const folderIndex = (folderElement as Element).getAttribute('data-folder');
-
-        return tabManager.getTabFolderById(folderIndex ? parseInt(folderIndex) : 0);
-    }
-
     render() {
         const { tabManager } = this.props;
         const { tabFolders, activeTabs, warning } = this.state;
@@ -102,24 +83,23 @@ class Popup extends Component<IProps, IState> {
         const actions = [
             {
                 title: 'New folder',
-                onClick: (_: MouseEvent) => {
-                    console.log('New folder');
+                onClick: (_: MouseEvent) => () => {
                     this.newFolderAction();
+                    this.updateState(tabManager);
                 },
                 contexts: [{
                     id: 'tabTree'
                 }],
-                leftContext: {
-                    class: 'more'
-                }
             },
             {
                 title: 'Restore folder',
                 onClick: (event: MouseEvent) => {
-                    const folder = this.getFolderFromEvent(event);
-                    debugger;
-                    TabFolder.restoreAllStatic(folder);
-                    tabManager.store();
+                    const folder = tabManager.getFolderFromEvent(event);
+                    if (folder) {
+                        TabFolder.restoreAllStatic(folder);
+                        this.updateState(tabManager);
+                        tabManager.store();
+                    }
                 },
                 contexts: [{
                     class: 'folder'
@@ -128,11 +108,11 @@ class Popup extends Component<IProps, IState> {
             {
                 title: 'Delete folder',
                 onClick: (event: MouseEvent) => {
-                    const folder = this.getFolderFromEvent(event);
-                    console.log('Foldr');
-                    console.dir(folder);
-                    tabManager.deleteFolder(folder);
-                    this.updateState(tabManager);
+                    const folder = tabManager.getFolderFromEvent(event);
+                    if (folder) {
+                        tabManager.deleteFolder(folder);
+                        this.updateState(tabManager);
+                    }
                 },
                 contexts: [{
                     class: 'folder'
@@ -141,33 +121,53 @@ class Popup extends Component<IProps, IState> {
             {
                 title: 'Restore tab',
                 onClick: (event: MouseEvent) => {
-                    const folder = this.getFolderFromEvent(event);
-                    const tab = this.getTabFromEvent(event);
-                    debugger;
-                    TabFolder.restoreStatic(folder, tab);
-                    tabManager.store();
+                    const folder = tabManager.getFolderFromEvent(event);
+                    if (folder) {
+                        const tab = tabManager.getTabFromEvent(event, folder.tabs, DATA_TAB_ID_ATTRIBUTE_NAME);
+                        if (tab) {
+                            TabFolder.restoreStatic(folder, tab);
+                            tabManager.store();
+                        }
+                    }
                 },
                 contexts: [{
                     class: 'tab'
-                }]
+                }],
+                leftContext: {
+                    class: 'more'
+                }
             },
             {
                 title: 'Delete tab',
                 onClick: (event: MouseEvent) => {
-                    const folder = this.getFolderFromEvent(event);
-                    const tab = this.getTabFromEvent(event);
-                    TabFolder.deleteTabStatic(folder, tab);
+                    const folder = tabManager.getFolderFromEvent(event);
+                    if (folder) {
+                        const folderTab = tabManager.getTabFromEvent(event, folder.tabs, DATA_TAB_ID_ATTRIBUTE_NAME);
+                        if (folderTab) {
+                            TabFolder.deleteTabStatic(folder, folderTab);
+                        }
+                    }
+                    else {
+                        const activeTab = tabManager.getTabFromEvent(event, activeTabs, DATA_TAB_ID_ATTRIBUTE_NAME);
+                        if (activeTab) {
+                            const tabs = activeTabs.filter((_tab) => activeTab.id !== _tab.id);
+                            this.setActiveTabs(tabs);
+                        }         
+                    }
                     this.updateState(tabManager);
                 },
                 contexts: [{
                     class: 'tab'
-                }]
+                }],
+                leftContext: {
+                    class: 'more'
+                }
             }
-        ];;
+        ];
 
         return (
             <div id="wrapper">
-                <Header collapseAction={this.collapseActiveAction} />
+                <Header title='Edit tabs' id={'collapseActiveBtn'} actionTitle={'Collapse Action'} actionFn={this.collapseActiveAction} />
                 <TabTree tabFolders={tabFolders} activeTabs={activeTabs} />
                 <ActionItems
                     saveAction={this.saveAction}
@@ -185,22 +185,3 @@ class Popup extends Component<IProps, IState> {
         )
     }
 }
-
-const renderCb = (manager: TabManager) => {
-    const state = {
-        tabManager: manager
-    };
-    render(<Popup {...state} />, document.getElementById('App') as Element)
-}
-
-const manager = new TabManager();
-manager.init(renderCb);
-
-chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'local' && changes.tabManager) {
-        manager.init(renderCb);
-    }
-});
-
-// Menu
-chrome.contextMenus.create({ title: 'Restore folder', contexts: ['page'] });

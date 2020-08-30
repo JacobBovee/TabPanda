@@ -1,3 +1,6 @@
+import { findParentWithMatchingAttribute } from "../utils";
+import { DATA_TAB_ID_ATTRIBUTE_NAME } from "../constants";
+
 interface ITabManagerState {
     tabFolders: TabFolder[];
     activeTabs: chrome.tabs.Tab[];
@@ -5,11 +8,26 @@ interface ITabManagerState {
 
 export class TabManager {
     public tabFolders: TabFolder[];
+    public currentWindow?: number;
 
     constructor() {
         this.tabFolders = [];
 
         this.mountExtension();
+    }
+
+    protected setCurrentWindow(cb?: () => void) {
+        try {
+            chrome.windows.getCurrent((current) => {
+                this.currentWindow = current.id;
+                if (cb) {
+                    cb();
+                }
+            });
+        }
+        catch (error) {
+            throw new Error('Could not assign current window ID')
+        }
     }
 
     public init(cb: (manager: TabManager) => void) {
@@ -36,7 +54,6 @@ export class TabManager {
     }
 
     public collapseTab(tab: chrome.tabs.Tab) {
-        debugger;
         if (tab.id) {
             chrome.tabs.remove(tab.id);
         }
@@ -48,40 +65,52 @@ export class TabManager {
     }
 
     public createTabFolder(name: string, tabs?: chrome.tabs.Tab[], editTitle?: boolean) {
-        const largestId = this.tabFolders[this.tabFolders.length-1].id + 1;
-        const tabFolder = new TabFolder(name, largestId || 0, tabs, editTitle);
+        const id = this.tabFolders.length ? this.tabFolders[this.tabFolders.length-1].id + 1 : 0;
+        const tabFolder = new TabFolder(name, id, tabs, editTitle);
         this.tabFolders.push(tabFolder);
     }
 
-    public createFolderWindows(folders: TabFolder[], activeTabs: chrome.tabs.Tab[]) {
-        folders.forEach((folder) => this.createFolderWindow(folder, activeTabs));
+    public getFolderIdFromTab(tab: chrome.tabs.Tab) {
+        return tab.url && parseInt(tab.url.split('folderId=')[1]);
     }
 
-    public createFolderWindow(folder: TabFolder, activeTabs: chrome.tabs.Tab[]) {
+    public getFolderIdFromTabs(tabs: chrome.tabs.Tab[]) {
+        return tabs
+            .filter((tab) => tab.url?.includes('folderId='))
+            .map((tab) => this.getFolderIdFromTab(tab));
+    }
+
+    public restoreFolder(folder: TabFolder) {
+        TabFolder.restoreAllStatic(folder);
+        this.deleteFolder(folder);
+        this.store();
+    }
+
+    public createFolderWindows(folders: TabFolder[], activeTabs: chrome.tabs.Tab[]) {
+        const folderIds = this.getFolderIdFromTabs(activeTabs);
+        folders.forEach((folder) => {
+            if (!folderIds.length || !folderIds.includes(folder.id)) {
+                this.createFolderWindow(folder);
+            }        
+        });
+    }
+
+    public createFolderWindow(folder: TabFolder) {
         // Inject folder data into html
         const folderUrl = chrome.extension.getURL('./folder.html');
-        const tabIds = activeTabs.map((tab) => tab.id);
         const cb = (tab: chrome.tabs.Tab) => {
-            debugger;
             folder.tabId = tab.id
         }
-        debugger;
-        console.log(folder.tabId)
-        console.log(tabIds);
-        console.log(tabIds.indexOf(folder.tabId));
-        console.log(!tabIds.indexOf(folder.tabId))
-        if (!folder.tabId || !!tabIds.indexOf(folder.tabId)) {
-            chrome.tabs.create({
-                url: folderUrl
-            }, cb);
-        }
+
+        chrome.tabs.create({
+            url: `${folderUrl}?folderId=${folder.id}`,
+            active: false
+        }, cb);
     }
 
     public deleteFolder(folder: TabFolder) {
-        debugger;
         const index = this.tabFolders.indexOf(folder);
         this.tabFolders.splice(index, 1);
-        debugger;
     }
 
     public getTabFolderById(id: number) {
@@ -94,23 +123,13 @@ export class TabManager {
         }
     }
 
-    public static getStaticTabFolder(index: number, cb: (tabFolder: TabFolder) => void) {
-        chrome.storage.local.get(['tabManager'], (data) => {
-            const tabManager = data.tabManager;
-            cb(tabManager.tabFolders[index]);
-        });
+    protected getTabsIds(tabs: chrome.tabs.Tab[]) {
+        return tabs.map((tab) => tab.id);
     }
 
-    public static getStaticTabFolders(cb: (tabFolders: TabFolder[]) => void) {
-        chrome.storage.local.get(['tabManager'], (data) => {
-            const tabManager = data.tabManager;
-            cb(tabManager.tabFolders);
-        });
-    }
-
-    protected async updateActiveTabs(newActiveTabs: chrome.tabs.Tab[], prevActiveTabs: chrome.tabs.Tab[]) {
-        const collapseTabs = prevActiveTabs.filter((tab) => newActiveTabs.indexOf(tab));
-        debugger;
+    protected updateActiveTabs(newActiveTabs: chrome.tabs.Tab[], prevActiveTabs: chrome.tabs.Tab[]) {
+        const activeIds = this.getTabsIds(newActiveTabs);
+        const collapseTabs = prevActiveTabs.filter((tab) => !activeIds.includes(tab.id));
         collapseTabs.forEach((tab) => this.collapseTab(tab));
     }
 
@@ -128,38 +147,77 @@ export class TabManager {
     }
 
     public mountExtension(cb?: (manager: TabManager) => void) {
-        chrome.storage.local.get(['tabManager'], (data: any) => {
-            if (!data.tabManager) {
+        const _cb = (tabManager: ITabManagerState) => {
+            if (!tabManager) {
                 this.store();
-            } else {
-                this.mapManagerStateToObject(data.tabManager, cb);
-            }
-        });
+            } 
+            else {
+                this.mapManagerStateToObject(tabManager, cb);
+            } 
+        }
+        const storedTabManagerCb = () => this.getStoredTabManager(_cb);
+        this.setCurrentWindow(storedTabManagerCb);
     }
 
     protected async updateBrowser(manager?: ITabManagerState) {
         if (manager) {
-            debugger;
-            const activeTabsCb = async (prevTabs: chrome.tabs.Tab[]) => {
-                debugger;
+            const activeTabsCb = (prevTabs: chrome.tabs.Tab[]) => {
                 this.updateActiveTabs(manager.activeTabs, prevTabs)
             };
-            TabManager.getActiveTabs(activeTabsCb, true); 
-            TabManager.getActiveTabs(
+            await TabManager.getActiveTabs(
                 (prevTabs) => this.createFolderWindows(manager.tabFolders, prevTabs),
                 false
             );
+            await TabManager.getActiveTabs(activeTabsCb, true); 
         }
     }
 
-    public async store(manager?: ITabManagerState) {
+    public getTabFromEvent(event: MouseEvent, tabs: chrome.tabs.Tab[], attributeName: string) {
+        const rootElement = (event.target as Element);
+        const tabElement = (findParentWithMatchingAttribute(rootElement, attributeName) as Element);
+
+        const tabIndexString = tabElement.getAttribute(attributeName)
+        const tabId = tabIndexString ? parseInt(tabIndexString) : 0;
+
+        return tabs.find((tab) => tab.id === tabId);
+    }
+
+    public getFolderFromEvent(event: MouseEvent) {
+        const rootElement = (event.target as Element);
+        const folderElement = findParentWithMatchingAttribute(rootElement, 'data-folder');
+
+        if (folderElement) {
+            const folderIndex = (folderElement as Element).getAttribute('data-folder');
+
+            return this.getTabFolderById(folderIndex ? parseInt(folderIndex) : 0);
+        }
+    }
+
+    public currentWindowName() {
+        return `tm_${this.currentWindow}`;
+    }
+
+    protected getStoredTabManager(cb: (tabManager: ITabManagerState) => void) {
+        const id = this.currentWindowName();
+        chrome.storage.local.get([id], (data) => {
+            if (this.currentWindow) {
+                const tabManager = data[id];
+                cb(tabManager);
+            }
+            else {
+                throw new Error('Could not get stored tab manager');
+            }
+        })
+    }
+
+    public store(manager?: ITabManagerState) {
         if (manager) {
             if (this.tabFolders !== manager.tabFolders) {
                 this.tabFolders = manager.tabFolders;
             }
         }
         this.updateBrowser(manager)
-        chrome.storage.local.set({ tabManager: this }, () => {})
+        chrome.storage.local.set({ [this.currentWindowName()]: this }, () => {})
     }
 }
 
@@ -185,6 +243,11 @@ export class TabFolder {
 
     public setTabs(tabs: chrome.tabs.Tab[]) {
         this.tabs = [...this.tabs, ...tabs];
+    }
+
+    public deleteTab(argTab: chrome.tabs.Tab) {
+        const tabs = this.tabs.filter((tab) => tab.id !== argTab.id);
+        this.tabs = tabs;
     }
 
     public static restoreAllStatic(tabFolder: TabFolder) {

@@ -1,5 +1,5 @@
 import { h, Component } from 'preact';
-import { elementTreeHasAnyAttributePair, Map, elementTreeHasAttributePair } from '../../manager/utils';
+import { elementTreeHasAnyAttributePair, Map, elementTreeHasAttributePair } from '../../utils';
 
 interface IAction {
     title: string;
@@ -28,7 +28,6 @@ export default class ContextMenu extends Component<IProps, IState> {
             visible: false
         };
 
-
         this.filterActionsByContexts = this.filterActionsByContexts.bind(this);
     }
 
@@ -41,8 +40,10 @@ export default class ContextMenu extends Component<IProps, IState> {
         });
     }
 
-    openIfLeftContext(target: Element, leftContext: Map<string>) {
+    openIfLeftContext(event: MouseEvent, leftContext: Map<string>) {
+        const target = event.target as Element;
         const isContextClick = elementTreeHasAttributePair(target, leftContext);
+        return isContextClick;
     }
 
     setContextMenu(event: MouseEvent) {
@@ -59,7 +60,7 @@ export default class ContextMenu extends Component<IProps, IState> {
     }
 
     componentDidMount() {
-        // const { actions } = this.props;
+        const { actions } = this.props;
 
         document.addEventListener('contextmenu', (event) => {
             this.setContextMenu(event);
@@ -71,7 +72,13 @@ export default class ContextMenu extends Component<IProps, IState> {
                 event.preventDefault();
                 this.resetState();
             }
-            // actions.forEach((action) => action.leftContext && this.openIfLeftContext((event.target as Element), action.leftContext));
+            actions.forEach((action) => {
+                if (action.leftContext) {
+                    if (this.openIfLeftContext(event, action.leftContext)) {
+                        this.setContextMenu(event);
+                    }
+                }
+            });
             
         });
     }

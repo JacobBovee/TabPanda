@@ -1,5 +1,12 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DATA_TAB_ID_ATTRIBUTE_NAME = exports.DATA_TAB_INDEX_ATTRIBUTE_NAME = void 0;
+exports.DATA_TAB_INDEX_ATTRIBUTE_NAME = 'data-tab-index';
+exports.DATA_TAB_ID_ATTRIBUTE_NAME = 'data-tab-id';
+
+},{}],2:[function(require,module,exports){
+"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -45,11 +52,26 @@ var __spreadArrays = (this && this.__spreadArrays) || function () {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TabFolder = exports.TabManager = void 0;
+var utils_1 = require("../utils");
 var TabManager = /** @class */ (function () {
     function TabManager() {
         this.tabFolders = [];
         this.mountExtension();
     }
+    TabManager.prototype.setCurrentWindow = function (cb) {
+        var _this = this;
+        try {
+            chrome.windows.getCurrent(function (current) {
+                _this.currentWindow = current.id;
+                if (cb) {
+                    cb();
+                }
+            });
+        }
+        catch (error) {
+            throw new Error('Could not assign current window ID');
+        }
+    };
     TabManager.prototype.init = function (cb) {
         this.mountExtension(cb);
     };
@@ -71,7 +93,6 @@ var TabManager = /** @class */ (function () {
         }
     };
     TabManager.prototype.collapseTab = function (tab) {
-        debugger;
         if (tab.id) {
             chrome.tabs.remove(tab.id);
         }
@@ -82,38 +103,47 @@ var TabManager = /** @class */ (function () {
         TabManager.getActiveTabs(cb, true);
     };
     TabManager.prototype.createTabFolder = function (name, tabs, editTitle) {
-        var largestId = this.tabFolders[this.tabFolders.length - 1].id + 1;
-        var tabFolder = new TabFolder(name, largestId || 0, tabs, editTitle);
+        var id = this.tabFolders.length ? this.tabFolders[this.tabFolders.length - 1].id + 1 : 0;
+        var tabFolder = new TabFolder(name, id, tabs, editTitle);
         this.tabFolders.push(tabFolder);
+    };
+    TabManager.prototype.getFolderIdFromTab = function (tab) {
+        return tab.url && parseInt(tab.url.split('folderId=')[1]);
+    };
+    TabManager.prototype.getFolderIdFromTabs = function (tabs) {
+        var _this = this;
+        return tabs
+            .filter(function (tab) { var _a; return (_a = tab.url) === null || _a === void 0 ? void 0 : _a.includes('folderId='); })
+            .map(function (tab) { return _this.getFolderIdFromTab(tab); });
+    };
+    TabManager.prototype.restoreFolder = function (folder) {
+        TabFolder.restoreAllStatic(folder);
+        this.deleteFolder(folder);
+        this.store();
     };
     TabManager.prototype.createFolderWindows = function (folders, activeTabs) {
         var _this = this;
-        folders.forEach(function (folder) { return _this.createFolderWindow(folder, activeTabs); });
+        var folderIds = this.getFolderIdFromTabs(activeTabs);
+        folders.forEach(function (folder) {
+            if (!folderIds.length || !folderIds.includes(folder.id)) {
+                _this.createFolderWindow(folder);
+            }
+        });
     };
-    TabManager.prototype.createFolderWindow = function (folder, activeTabs) {
+    TabManager.prototype.createFolderWindow = function (folder) {
         // Inject folder data into html
         var folderUrl = chrome.extension.getURL('./folder.html');
-        var tabIds = activeTabs.map(function (tab) { return tab.id; });
         var cb = function (tab) {
-            debugger;
             folder.tabId = tab.id;
         };
-        debugger;
-        console.log(folder.tabId);
-        console.log(tabIds);
-        console.log(tabIds.indexOf(folder.tabId));
-        console.log(!tabIds.indexOf(folder.tabId));
-        if (!folder.tabId || !!tabIds.indexOf(folder.tabId)) {
-            chrome.tabs.create({
-                url: folderUrl
-            }, cb);
-        }
+        chrome.tabs.create({
+            url: folderUrl + "?folderId=" + folder.id,
+            active: false
+        }, cb);
     };
     TabManager.prototype.deleteFolder = function (folder) {
-        debugger;
         var index = this.tabFolders.indexOf(folder);
         this.tabFolders.splice(index, 1);
-        debugger;
     };
     TabManager.prototype.getTabFolderById = function (id) {
         var folder = this.tabFolders.find(function (folder) { return folder.id === id; });
@@ -124,29 +154,14 @@ var TabManager = /** @class */ (function () {
             return folder;
         }
     };
-    TabManager.getStaticTabFolder = function (index, cb) {
-        chrome.storage.local.get(['tabManager'], function (data) {
-            var tabManager = data.tabManager;
-            cb(tabManager.tabFolders[index]);
-        });
-    };
-    TabManager.getStaticTabFolders = function (cb) {
-        chrome.storage.local.get(['tabManager'], function (data) {
-            var tabManager = data.tabManager;
-            cb(tabManager.tabFolders);
-        });
+    TabManager.prototype.getTabsIds = function (tabs) {
+        return tabs.map(function (tab) { return tab.id; });
     };
     TabManager.prototype.updateActiveTabs = function (newActiveTabs, prevActiveTabs) {
-        return __awaiter(this, void 0, void 0, function () {
-            var collapseTabs;
-            var _this = this;
-            return __generator(this, function (_a) {
-                collapseTabs = prevActiveTabs.filter(function (tab) { return newActiveTabs.indexOf(tab); });
-                debugger;
-                collapseTabs.forEach(function (tab) { return _this.collapseTab(tab); });
-                return [2 /*return*/];
-            });
-        });
+        var _this = this;
+        var activeIds = this.getTabsIds(newActiveTabs);
+        var collapseTabs = prevActiveTabs.filter(function (tab) { return !activeIds.includes(tab.id); });
+        collapseTabs.forEach(function (tab) { return _this.collapseTab(tab); });
     };
     TabManager.prototype.mapManagerStateToObject = function (managerState, cb) {
         for (var propName in managerState) {
@@ -162,49 +177,80 @@ var TabManager = /** @class */ (function () {
     };
     TabManager.prototype.mountExtension = function (cb) {
         var _this = this;
-        chrome.storage.local.get(['tabManager'], function (data) {
-            if (!data.tabManager) {
+        var _cb = function (tabManager) {
+            if (!tabManager) {
                 _this.store();
             }
             else {
-                _this.mapManagerStateToObject(data.tabManager, cb);
+                _this.mapManagerStateToObject(tabManager, cb);
             }
-        });
+        };
+        var storedTabManagerCb = function () { return _this.getStoredTabManager(_cb); };
+        this.setCurrentWindow(storedTabManagerCb);
     };
     TabManager.prototype.updateBrowser = function (manager) {
         return __awaiter(this, void 0, void 0, function () {
             var activeTabsCb;
             var _this = this;
             return __generator(this, function (_a) {
-                if (manager) {
-                    debugger;
-                    activeTabsCb = function (prevTabs) { return __awaiter(_this, void 0, void 0, function () {
-                        return __generator(this, function (_a) {
-                            debugger;
-                            this.updateActiveTabs(manager.activeTabs, prevTabs);
-                            return [2 /*return*/];
-                        });
-                    }); };
-                    TabManager.getActiveTabs(activeTabsCb, true);
-                    TabManager.getActiveTabs(function (prevTabs) { return _this.createFolderWindows(manager.tabFolders, prevTabs); }, false);
+                switch (_a.label) {
+                    case 0:
+                        if (!manager) return [3 /*break*/, 3];
+                        activeTabsCb = function (prevTabs) {
+                            _this.updateActiveTabs(manager.activeTabs, prevTabs);
+                        };
+                        return [4 /*yield*/, TabManager.getActiveTabs(function (prevTabs) { return _this.createFolderWindows(manager.tabFolders, prevTabs); }, false)];
+                    case 1:
+                        _a.sent();
+                        return [4 /*yield*/, TabManager.getActiveTabs(activeTabsCb, true)];
+                    case 2:
+                        _a.sent();
+                        _a.label = 3;
+                    case 3: return [2 /*return*/];
                 }
-                return [2 /*return*/];
             });
         });
     };
-    TabManager.prototype.store = function (manager) {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                if (manager) {
-                    if (this.tabFolders !== manager.tabFolders) {
-                        this.tabFolders = manager.tabFolders;
-                    }
-                }
-                this.updateBrowser(manager);
-                chrome.storage.local.set({ tabManager: this }, function () { });
-                return [2 /*return*/];
-            });
+    TabManager.prototype.getTabFromEvent = function (event, tabs, attributeName) {
+        var rootElement = event.target;
+        var tabElement = utils_1.findParentWithMatchingAttribute(rootElement, attributeName);
+        var tabIndexString = tabElement.getAttribute(attributeName);
+        var tabId = tabIndexString ? parseInt(tabIndexString) : 0;
+        return tabs.find(function (tab) { return tab.id === tabId; });
+    };
+    TabManager.prototype.getFolderFromEvent = function (event) {
+        var rootElement = event.target;
+        var folderElement = utils_1.findParentWithMatchingAttribute(rootElement, 'data-folder');
+        if (folderElement) {
+            var folderIndex = folderElement.getAttribute('data-folder');
+            return this.getTabFolderById(folderIndex ? parseInt(folderIndex) : 0);
+        }
+    };
+    TabManager.prototype.currentWindowName = function () {
+        return "tm_" + this.currentWindow;
+    };
+    TabManager.prototype.getStoredTabManager = function (cb) {
+        var _this = this;
+        var id = this.currentWindowName();
+        chrome.storage.local.get([id], function (data) {
+            if (_this.currentWindow) {
+                var tabManager = data[id];
+                cb(tabManager);
+            }
+            else {
+                throw new Error('Could not get stored tab manager');
+            }
         });
+    };
+    TabManager.prototype.store = function (manager) {
+        var _a;
+        if (manager) {
+            if (this.tabFolders !== manager.tabFolders) {
+                this.tabFolders = manager.tabFolders;
+            }
+        }
+        this.updateBrowser(manager);
+        chrome.storage.local.set((_a = {}, _a[this.currentWindowName()] = this, _a), function () { });
     };
     return TabManager;
 }());
@@ -222,6 +268,10 @@ var TabFolder = /** @class */ (function () {
     };
     TabFolder.prototype.setTabs = function (tabs) {
         this.tabs = __spreadArrays(this.tabs, tabs);
+    };
+    TabFolder.prototype.deleteTab = function (argTab) {
+        var tabs = this.tabs.filter(function (tab) { return tab.id !== argTab.id; });
+        this.tabs = tabs;
     };
     TabFolder.restoreAllStatic = function (tabFolder) {
         for (var _i = 0, _a = tabFolder.tabs; _i < _a.length; _i++) {
@@ -247,7 +297,7 @@ var TabFolder = /** @class */ (function () {
 }());
 exports.TabFolder = TabFolder;
 
-},{}],2:[function(require,module,exports){
+},{"../utils":3}],3:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.elementTreeHasAnyAttributePair = exports.elementTreeHasAttributePair = exports.findParentWithMatchingAttribute = void 0;
@@ -269,7 +319,7 @@ exports.findParentWithMatchingAttribute = findParentWithMatchingAttribute;
 function elementTreeHasAttributePair(element, attribute) {
     var key = Object.keys(attribute)[0];
     var elementHasAttributePair = element.getAttribute(key);
-    if (elementHasAttributePair === attribute[key]) {
+    if (elementHasAttributePair === null || elementHasAttributePair === void 0 ? void 0 : elementHasAttributePair.includes(attribute[key])) {
         return true;
     }
     else {
@@ -294,7 +344,70 @@ function elementTreeHasAnyAttributePair(element, attributes) {
 }
 exports.elementTreeHasAnyAttributePair = elementTreeHasAnyAttributePair;
 
-},{}],3:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
+"use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var preact_1 = require("preact");
+var popup_1 = __importDefault(require("./popup"));
+var tabManager_1 = require("../manager/tabManager");
+var folder_1 = __importDefault(require("./folder"));
+// Render popup when popup element is found
+var POPUP_APP_ID_ELEMENT = document.getElementById('App');
+if (POPUP_APP_ID_ELEMENT) {
+    var renderCb_1 = function (manager) {
+        var state = {
+            tabManager: manager
+        };
+        preact_1.render(preact_1.h(popup_1.default, __assign({}, state)), POPUP_APP_ID_ELEMENT);
+    };
+    var manager_1 = new tabManager_1.TabManager();
+    manager_1.init(renderCb_1);
+    chrome.storage.onChanged.addListener(function (changes, namespace) {
+        if (namespace === 'local' && changes.tabManager) {
+            manager_1.init(renderCb_1);
+        }
+    });
+}
+// Render folder if folder element is found
+var FOLDER_APP_ID_ELEMENT = document.getElementById('folderApp');
+if (FOLDER_APP_ID_ELEMENT) {
+    var renderCb_2 = function (manager) {
+        try {
+            var folderId = parseInt(window.location.href.split('?folderId=')[1]);
+            var state = {
+                tabManager: manager,
+                folderId: folderId
+            };
+            preact_1.render(preact_1.h(folder_1.default, __assign({}, state)), FOLDER_APP_ID_ELEMENT);
+        }
+        catch (e) {
+            throw new Error(e);
+        }
+    };
+    var manager_2 = new tabManager_1.TabManager();
+    manager_2.init(renderCb_2);
+    chrome.storage.onChanged.addListener(function (changes, namespace) {
+        if (namespace === 'local' && changes.tabManager) {
+            manager_2.init(renderCb_2);
+        }
+    });
+}
+
+},{"../manager/tabManager":2,"./folder":13,"./popup":14,"preact":15}],5:[function(require,module,exports){
 "use strict";
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
@@ -329,7 +442,7 @@ var ActionItems = /** @class */ (function (_super) {
 }(preact_1.Component));
 exports.default = ActionItems;
 
-},{"preact":12}],4:[function(require,module,exports){
+},{"preact":15}],6:[function(require,module,exports){
 "use strict";
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
@@ -346,7 +459,7 @@ var __extends = (this && this.__extends) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 var preact_1 = require("preact");
-var utils_1 = require("../../manager/utils");
+var utils_1 = require("../../utils");
 var ContextMenu = /** @class */ (function (_super) {
     __extends(ContextMenu, _super);
     function ContextMenu(props) {
@@ -367,8 +480,10 @@ var ContextMenu = /** @class */ (function (_super) {
         _this.filterActionsByContexts = _this.filterActionsByContexts.bind(_this);
         return _this;
     }
-    ContextMenu.prototype.openIfLeftContext = function (target, leftContext) {
+    ContextMenu.prototype.openIfLeftContext = function (event, leftContext) {
+        var target = event.target;
         var isContextClick = utils_1.elementTreeHasAttributePair(target, leftContext);
+        return isContextClick;
     };
     ContextMenu.prototype.setContextMenu = function (event) {
         event.preventDefault();
@@ -382,8 +497,8 @@ var ContextMenu = /** @class */ (function (_super) {
         });
     };
     ContextMenu.prototype.componentDidMount = function () {
-        // const { actions } = this.props;
         var _this = this;
+        var actions = this.props.actions;
         document.addEventListener('contextmenu', function (event) {
             _this.setContextMenu(event);
         });
@@ -393,7 +508,13 @@ var ContextMenu = /** @class */ (function (_super) {
                 event.preventDefault();
                 _this.resetState();
             }
-            // actions.forEach((action) => action.leftContext && this.openIfLeftContext((event.target as Element), action.leftContext));
+            actions.forEach(function (action) {
+                if (action.leftContext) {
+                    if (_this.openIfLeftContext(event, action.leftContext)) {
+                        _this.setContextMenu(event);
+                    }
+                }
+            });
         });
     };
     ContextMenu.prototype.filterActionsByContexts = function (actions) {
@@ -430,7 +551,7 @@ var ContextMenu = /** @class */ (function (_super) {
 }(preact_1.Component));
 exports.default = ContextMenu;
 
-},{"../../manager/utils":2,"preact":12}],5:[function(require,module,exports){
+},{"../../utils":3,"preact":15}],7:[function(require,module,exports){
 "use strict";
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
@@ -453,16 +574,17 @@ var Header = /** @class */ (function (_super) {
         return _super !== null && _super.apply(this, arguments) || this;
     }
     Header.prototype.render = function () {
-        var collapseAction = this.props.collapseAction;
+        var _a = this.props, id = _a.id, title = _a.title, actionTitle = _a.actionTitle, actionFn = _a.actionFn;
         return (preact_1.h("header", null,
-            preact_1.h("h1", null, "Edit tabs"),
-            preact_1.h("button", { id: "collapseActiveBtn", onClick: function () { return collapseAction(); } }, "Collapse active")));
+            preact_1.h("h1", null, title),
+            actionTitle && actionFn &&
+                preact_1.h("button", { id: id ? id : '', onClick: actionFn }, actionTitle)));
     };
     return Header;
 }(preact_1.Component));
 exports.default = Header;
 
-},{"preact":12}],6:[function(require,module,exports){
+},{"preact":15}],8:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var preact_1 = require("preact");
@@ -494,18 +616,32 @@ function Icon(props) {
 }
 exports.default = Icon;
 
-},{"preact":12}],7:[function(require,module,exports){
+},{"preact":15}],9:[function(require,module,exports){
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var preact_1 = require("preact");
 var icon_1 = __importDefault(require("./icon"));
+var constants_1 = require("../../constants");
 function Tab(props) {
+    var _a;
     var tab = props.tab;
     var ico = tab.favIconUrl ? preact_1.h(icon_1.default, { type: 'custom', iconSrc: tab.favIconUrl }) : preact_1.h(icon_1.default, { type: "link" });
-    return (preact_1.h("li", { class: "tab", "data-tab-id": tab.index },
+    var dataAttributes = (_a = {}, _a[constants_1.DATA_TAB_ID_ATTRIBUTE_NAME] = tab.id, _a);
+    return (preact_1.h("li", __assign({ class: "tab" }, dataAttributes),
         preact_1.h("span", null,
             ico,
             tab.title),
@@ -513,7 +649,7 @@ function Tab(props) {
 }
 exports.default = Tab;
 
-},{"./icon":6,"preact":12}],8:[function(require,module,exports){
+},{"../../constants":1,"./icon":8,"preact":15}],10:[function(require,module,exports){
 "use strict";
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
@@ -605,7 +741,7 @@ var TabList = /** @class */ (function (_super) {
 }(preact_1.Component));
 exports.default = TabList;
 
-},{"./icon":6,"./tab":7,"preact":12}],9:[function(require,module,exports){
+},{"./icon":8,"./tab":9,"preact":15}],11:[function(require,module,exports){
 "use strict";
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
@@ -640,13 +776,9 @@ var TabTree = /** @class */ (function (_super) {
     }
     TabTree.prototype.render = function () {
         var _a = this.props, tabFolders = _a.tabFolders, activeTabs = _a.activeTabs;
-        console.log('Tab folders props');
-        console.dir(tabFolders);
         return (preact_1.h("div", { id: "tabTree" },
             preact_1.h("ul", { class: "parent" },
                 tabFolders && tabFolders.map(function (folder) {
-                    console.log('Rendering folder');
-                    console.dir(folder);
                     return preact_1.h(tabList_1.default, { folder: folder });
                 }),
                 activeTabs && preact_1.h(tabList_1.default, { tabs: activeTabs }))));
@@ -655,7 +787,7 @@ var TabTree = /** @class */ (function (_super) {
 }(preact_1.Component));
 exports.default = TabTree;
 
-},{"./tabList":8,"preact":12}],10:[function(require,module,exports){
+},{"./tabList":10,"preact":15}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var preact_1 = require("preact");
@@ -671,7 +803,7 @@ function Warning(props) {
 }
 exports.default = Warning;
 
-},{"preact":12}],11:[function(require,module,exports){
+},{"preact":15}],13:[function(require,module,exports){
 "use strict";
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
@@ -686,17 +818,116 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+Object.defineProperty(exports, "__esModule", { value: true });
+var preact_1 = require("preact");
+var tabManager_1 = require("../manager/tabManager");
+var header_1 = __importDefault(require("./components/header"));
+var tabTree_1 = __importDefault(require("./components/tabTree"));
+var icon_1 = __importDefault(require("./components/icon"));
+var constants_1 = require("../constants");
+var contextMenu_1 = __importDefault(require("./components/contextMenu"));
+var Folder = /** @class */ (function (_super) {
+    __extends(Folder, _super);
+    function Folder(props) {
+        var _this = _super.call(this, props) || this;
+        _this.state = {
+            tabManager: props.tabManager
+        };
+        _this.restoreFolder = _this.restoreFolder.bind(_this);
+        return _this;
+    }
+    Folder.prototype.getFolder = function () {
+        var tabManager = this.state.tabManager;
+        var folderId = this.props.folderId;
+        return tabManager.getTabFolderById(folderId);
+    };
+    Folder.prototype.componentDidMount = function () {
+        this.setState({ tabManager: this.props.tabManager });
+        var folder = this.getFolder();
+        window.document.title = folder.name;
+    };
+    Folder.prototype.updateState = function (tabManager) {
+        this.setState({ tabManager: tabManager });
+    };
+    Folder.prototype.restoreFolder = function () {
+        var tabManager = this.state.tabManager;
+        var folder = this.getFolder();
+        tabManager.restoreFolder(folder);
+    };
+    Folder.prototype.render = function () {
+        var _this = this;
+        var tabManager = this.state.tabManager;
+        var tabFolder = this.getFolder();
+        var actions = [
+            {
+                title: 'Restore tab',
+                onClick: function (event) {
+                    var folder = tabManager.getFolderFromEvent(event);
+                    if (folder) {
+                        var tab = tabManager.getTabFromEvent(event, folder.tabs, constants_1.DATA_TAB_ID_ATTRIBUTE_NAME);
+                        if (tab) {
+                            tabManager_1.TabFolder.restoreStatic(folder, tab);
+                            tabManager.store();
+                        }
+                    }
+                },
+                contexts: [{
+                        class: 'tab'
+                    }],
+                leftContext: {
+                    class: 'more'
+                }
+            },
+            {
+                title: 'Delete tab',
+                onClick: function (event) {
+                    var tab = tabManager.getTabFromEvent(event, tabFolder.tabs, constants_1.DATA_TAB_ID_ATTRIBUTE_NAME);
+                    if (tab) {
+                        tabManager_1.TabFolder.deleteTabStatic(tabFolder, tab);
+                        tabManager.store();
+                    }
+                    _this.updateState(tabManager);
+                },
+                contexts: [{
+                        class: 'tab'
+                    }],
+                leftContext: {
+                    class: 'more'
+                }
+            }
+        ];
+        if (tabManager && tabFolder) {
+            return (preact_1.h("div", { className: 'folder-wrapper' },
+                preact_1.h(header_1.default, { actionTitle: 'Restore folder', actionFn: this.restoreFolder, title: preact_1.h("div", { className: 'folder-title' },
+                        preact_1.h(icon_1.default, { type: "folder" }),
+                        " ",
+                        tabFolder.name) }),
+                preact_1.h(tabTree_1.default, { activeTabs: tabFolder.tabs }),
+                preact_1.h(contextMenu_1.default, { actions: actions })));
+        }
+    };
+    return Folder;
+}(preact_1.Component));
+exports.default = Folder;
+
+},{"../constants":1,"../manager/tabManager":2,"./components/contextMenu":6,"./components/header":7,"./components/icon":8,"./components/tabTree":11,"preact":15}],14:[function(require,module,exports){
+"use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -707,8 +938,8 @@ var tabTree_1 = __importDefault(require("./components/tabTree"));
 var actionItems_1 = __importDefault(require("./components/actionItems"));
 var tabManager_1 = require("../manager/tabManager");
 var contextMenu_1 = __importDefault(require("./components/contextMenu"));
-var utils_1 = require("../manager/utils");
 var warning_1 = __importDefault(require("./components/warning"));
+var constants_1 = require("../constants");
 var Popup = /** @class */ (function (_super) {
     __extends(Popup, _super);
     function Popup(props) {
@@ -719,7 +950,6 @@ var Popup = /** @class */ (function (_super) {
         _this.saveAction = _this.saveAction.bind(_this);
         _this.cancelAction = _this.cancelAction.bind(_this);
         _this.newFolderAction = _this.newFolderAction.bind(_this);
-        _this.getFolderFromEvent = _this.getFolderFromEvent.bind(_this);
         _this.updateState = _this.updateState.bind(_this);
         return _this;
     }
@@ -758,20 +988,6 @@ var Popup = /** @class */ (function (_super) {
     Popup.prototype.updateState = function (tabManager) {
         this.setTabFolders(tabManager.tabFolders);
     };
-    Popup.prototype.getTabFromEvent = function (event) {
-        var rootElement = event.target;
-        var tabFolder = this.getFolderFromEvent(event);
-        var tabElement = utils_1.findParentWithMatchingAttribute(rootElement, 'data-tab-id');
-        var tabIndex = tabElement.getAttribute('data-tab-id');
-        return tabFolder.tabs[tabIndex ? parseInt(tabIndex) : 0];
-    };
-    Popup.prototype.getFolderFromEvent = function (event) {
-        var tabManager = this.props.tabManager;
-        var rootElement = event.target;
-        var folderElement = utils_1.findParentWithMatchingAttribute(rootElement, 'data-folder');
-        var folderIndex = folderElement.getAttribute('data-folder');
-        return tabManager.getTabFolderById(folderIndex ? parseInt(folderIndex) : 0);
-    };
     Popup.prototype.render = function () {
         var _this = this;
         var tabManager = this.props.tabManager;
@@ -779,24 +995,23 @@ var Popup = /** @class */ (function (_super) {
         var actions = [
             {
                 title: 'New folder',
-                onClick: function (_) {
-                    console.log('New folder');
+                onClick: function (_) { return function () {
                     _this.newFolderAction();
-                },
+                    _this.updateState(tabManager);
+                }; },
                 contexts: [{
                         id: 'tabTree'
                     }],
-                leftContext: {
-                    class: 'more'
-                }
             },
             {
                 title: 'Restore folder',
                 onClick: function (event) {
-                    var folder = _this.getFolderFromEvent(event);
-                    debugger;
-                    tabManager_1.TabFolder.restoreAllStatic(folder);
-                    tabManager.store();
+                    var folder = tabManager.getFolderFromEvent(event);
+                    if (folder) {
+                        tabManager_1.TabFolder.restoreAllStatic(folder);
+                        _this.updateState(tabManager);
+                        tabManager.store();
+                    }
                 },
                 contexts: [{
                         class: 'folder'
@@ -805,11 +1020,11 @@ var Popup = /** @class */ (function (_super) {
             {
                 title: 'Delete folder',
                 onClick: function (event) {
-                    var folder = _this.getFolderFromEvent(event);
-                    console.log('Foldr');
-                    console.dir(folder);
-                    tabManager.deleteFolder(folder);
-                    _this.updateState(tabManager);
+                    var folder = tabManager.getFolderFromEvent(event);
+                    if (folder) {
+                        tabManager.deleteFolder(folder);
+                        _this.updateState(tabManager);
+                    }
                 },
                 contexts: [{
                         class: 'folder'
@@ -818,32 +1033,51 @@ var Popup = /** @class */ (function (_super) {
             {
                 title: 'Restore tab',
                 onClick: function (event) {
-                    var folder = _this.getFolderFromEvent(event);
-                    var tab = _this.getTabFromEvent(event);
-                    debugger;
-                    tabManager_1.TabFolder.restoreStatic(folder, tab);
-                    tabManager.store();
+                    var folder = tabManager.getFolderFromEvent(event);
+                    if (folder) {
+                        var tab = tabManager.getTabFromEvent(event, folder.tabs, constants_1.DATA_TAB_ID_ATTRIBUTE_NAME);
+                        if (tab) {
+                            tabManager_1.TabFolder.restoreStatic(folder, tab);
+                            tabManager.store();
+                        }
+                    }
                 },
                 contexts: [{
                         class: 'tab'
-                    }]
+                    }],
+                leftContext: {
+                    class: 'more'
+                }
             },
             {
                 title: 'Delete tab',
                 onClick: function (event) {
-                    var folder = _this.getFolderFromEvent(event);
-                    var tab = _this.getTabFromEvent(event);
-                    tabManager_1.TabFolder.deleteTabStatic(folder, tab);
+                    var folder = tabManager.getFolderFromEvent(event);
+                    if (folder) {
+                        var folderTab = tabManager.getTabFromEvent(event, folder.tabs, constants_1.DATA_TAB_ID_ATTRIBUTE_NAME);
+                        if (folderTab) {
+                            tabManager_1.TabFolder.deleteTabStatic(folder, folderTab);
+                        }
+                    }
+                    else {
+                        var activeTab_1 = tabManager.getTabFromEvent(event, activeTabs, constants_1.DATA_TAB_ID_ATTRIBUTE_NAME);
+                        if (activeTab_1) {
+                            var tabs = activeTabs.filter(function (_tab) { return activeTab_1.id !== _tab.id; });
+                            _this.setActiveTabs(tabs);
+                        }
+                    }
                     _this.updateState(tabManager);
                 },
                 contexts: [{
                         class: 'tab'
-                    }]
+                    }],
+                leftContext: {
+                    class: 'more'
+                }
             }
         ];
-        ;
         return (preact_1.h("div", { id: "wrapper" },
-            preact_1.h(header_1.default, { collapseAction: this.collapseActiveAction }),
+            preact_1.h(header_1.default, { title: 'Edit tabs', id: 'collapseActiveBtn', actionTitle: 'Collapse Action', actionFn: this.collapseActiveAction }),
             preact_1.h(tabTree_1.default, { tabFolders: tabFolders, activeTabs: activeTabs }),
             preact_1.h(actionItems_1.default, { saveAction: this.saveAction, cancelAction: this.cancelAction, newFolderAction: this.newFolderAction }),
             preact_1.h(contextMenu_1.default, { actions: actions }),
@@ -851,24 +1085,10 @@ var Popup = /** @class */ (function (_super) {
     };
     return Popup;
 }(preact_1.Component));
-var renderCb = function (manager) {
-    var state = {
-        tabManager: manager
-    };
-    preact_1.render(preact_1.h(Popup, __assign({}, state)), document.getElementById('App'));
-};
-var manager = new tabManager_1.TabManager();
-manager.init(renderCb);
-chrome.storage.onChanged.addListener(function (changes, namespace) {
-    if (namespace === 'local' && changes.tabManager) {
-        manager.init(renderCb);
-    }
-});
-// Menu
-chrome.contextMenus.create({ title: 'Restore folder', contexts: ['page'] });
+exports.default = Popup;
 
-},{"../manager/tabManager":1,"../manager/utils":2,"./components/actionItems":3,"./components/contextMenu":4,"./components/header":5,"./components/tabTree":9,"./components/warning":10,"preact":12}],12:[function(require,module,exports){
+},{"../constants":1,"../manager/tabManager":2,"./components/actionItems":5,"./components/contextMenu":6,"./components/header":7,"./components/tabTree":11,"./components/warning":12,"preact":15}],15:[function(require,module,exports){
 var n,l,u,t,i,o,r,f={},e=[],c=/acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ntw|ine[ch]|zoo|^ord|itera/i;function s(n,l){for(var u in l)n[u]=l[u];return n}function a(n){var l=n.parentNode;l&&l.removeChild(n)}function p(n,l,u){var t,i=arguments,o={};for(t in l)"key"!==t&&"ref"!==t&&(o[t]=l[t]);if(arguments.length>3)for(u=[u],t=3;t<arguments.length;t++)u.push(i[t]);if(null!=u&&(o.children=u),"function"==typeof n&&null!=n.defaultProps)for(t in n.defaultProps)void 0===o[t]&&(o[t]=n.defaultProps[t]);return v(n,o,l&&l.key,l&&l.ref,null)}function v(l,u,t,i,o){var r={type:l,props:u,key:t,ref:i,__k:null,__:null,__b:0,__e:null,__d:void 0,__c:null,constructor:void 0,__v:o};return null==o&&(r.__v=r),n.vnode&&n.vnode(r),r}function h(n){return n.children}function y(n,l){this.props=n,this.context=l}function d(n,l){if(null==l)return n.__?d(n.__,n.__.__k.indexOf(n)+1):null;for(var u;l<n.__k.length;l++)if(null!=(u=n.__k[l])&&null!=u.__e)return u.__e;return"function"==typeof n.type?d(n):null}function _(n){var l,u;if(null!=(n=n.__)&&null!=n.__c){for(n.__e=n.__c.base=null,l=0;l<n.__k.length;l++)if(null!=(u=n.__k[l])&&null!=u.__e){n.__e=n.__c.base=u.__e;break}return _(n)}}function w(l){(!l.__d&&(l.__d=!0)&&u.push(l)&&!x.__r++||i!==n.debounceRendering)&&((i=n.debounceRendering)||t)(x)}function x(){for(var n;x.__r=u.length;)n=u.sort(function(n,l){return n.__v.__b-l.__v.__b}),u=[],n.some(function(n){var l,u,t,i,o,r,f;n.__d&&(r=(o=(l=n).__v).__e,(f=l.__P)&&(u=[],(t=s({},o)).__v=t,i=N(f,o,t,l.__n,void 0!==f.ownerSVGElement,null,u,null==r?d(o):r),z(u,o),i!=r&&_(o)))})}function k(n,l,u,t,i,o,r,c,s,p){var y,_,w,x,k,g,b,A=t&&t.__k||e,P=A.length;for(s==f&&(s=null!=r?r[0]:P?d(t,0):null),u.__k=[],y=0;y<l.length;y++)if(null!=(x=u.__k[y]=null==(x=l[y])||"boolean"==typeof x?null:"string"==typeof x||"number"==typeof x?v(null,x,null,null,x):Array.isArray(x)?v(h,{children:x},null,null,null):null!=x.__e||null!=x.__c?v(x.type,x.props,x.key,null,x.__v):x)){if(x.__=u,x.__b=u.__b+1,null===(w=A[y])||w&&x.key==w.key&&x.type===w.type)A[y]=void 0;else for(_=0;_<P;_++){if((w=A[_])&&x.key==w.key&&x.type===w.type){A[_]=void 0;break}w=null}k=N(n,x,w=w||f,i,o,r,c,s,p),(_=x.ref)&&w.ref!=_&&(b||(b=[]),w.ref&&b.push(w.ref,null,x),b.push(_,x.__c||k,x)),null!=k?(null==g&&(g=k),s=m(n,x,w,A,r,k,s),p||"option"!=u.type?"function"==typeof u.type&&(u.__d=s):n.value=""):s&&w.__e==s&&s.parentNode!=n&&(s=d(w))}if(u.__e=g,null!=r&&"function"!=typeof u.type)for(y=r.length;y--;)null!=r[y]&&a(r[y]);for(y=P;y--;)null!=A[y]&&j(A[y],A[y]);if(b)for(y=0;y<b.length;y++)$(b[y],b[++y],b[++y])}function m(n,l,u,t,i,o,r){var f,e,c;if(void 0!==l.__d)f=l.__d,l.__d=void 0;else if(i==u||o!=r||null==o.parentNode)n:if(null==r||r.parentNode!==n)n.appendChild(o),f=null;else{for(e=r,c=0;(e=e.nextSibling)&&c<t.length;c+=2)if(e==o)break n;n.insertBefore(o,r),f=r}return void 0!==f?f:o.nextSibling}function g(n,l,u,t,i){var o;for(o in u)"children"===o||"key"===o||o in l||A(n,o,null,u[o],t);for(o in l)i&&"function"!=typeof l[o]||"children"===o||"key"===o||"value"===o||"checked"===o||u[o]===l[o]||A(n,o,l[o],u[o],t)}function b(n,l,u){"-"===l[0]?n.setProperty(l,u):n[l]="number"==typeof u&&!1===c.test(l)?u+"px":null==u?"":u}function A(n,l,u,t,i){var o,r,f,e,c;if(i?"className"===l&&(l="class"):"class"===l&&(l="className"),"style"===l)if(o=n.style,"string"==typeof u)o.cssText=u;else{if("string"==typeof t&&(o.cssText="",t=null),t)for(e in t)u&&e in u||b(o,e,"");if(u)for(c in u)t&&u[c]===t[c]||b(o,c,u[c])}else"o"===l[0]&&"n"===l[1]?(r=l!==(l=l.replace(/Capture$/,"")),f=l.toLowerCase(),l=(f in n?f:l).slice(2),u?(t||n.addEventListener(l,P,r),(n.l||(n.l={}))[l]=u):n.removeEventListener(l,P,r)):"list"!==l&&"tagName"!==l&&"form"!==l&&"type"!==l&&"size"!==l&&"download"!==l&&!i&&l in n?n[l]=null==u?"":u:"function"!=typeof u&&"dangerouslySetInnerHTML"!==l&&(l!==(l=l.replace(/^xlink:?/,""))?null==u||!1===u?n.removeAttributeNS("http://www.w3.org/1999/xlink",l.toLowerCase()):n.setAttributeNS("http://www.w3.org/1999/xlink",l.toLowerCase(),u):null==u||!1===u&&!/^ar/.test(l)?n.removeAttribute(l):n.setAttribute(l,u))}function P(l){this.l[l.type](n.event?n.event(l):l)}function C(n,l,u){var t,i;for(t=0;t<n.__k.length;t++)(i=n.__k[t])&&(i.__=n,i.__e&&("function"==typeof i.type&&i.__k.length>1&&C(i,l,u),l=m(u,i,i,n.__k,null,i.__e,l),"function"==typeof n.type&&(n.__d=l)))}function N(l,u,t,i,o,r,f,e,c){var a,p,v,d,_,w,x,m,g,b,A,P=u.type;if(void 0!==u.constructor)return null;(a=n.__b)&&a(u);try{n:if("function"==typeof P){if(m=u.props,g=(a=P.contextType)&&i[a.__c],b=a?g?g.props.value:a.__:i,t.__c?x=(p=u.__c=t.__c).__=p.__E:("prototype"in P&&P.prototype.render?u.__c=p=new P(m,b):(u.__c=p=new y(m,b),p.constructor=P,p.render=H),g&&g.sub(p),p.props=m,p.state||(p.state={}),p.context=b,p.__n=i,v=p.__d=!0,p.__h=[]),null==p.__s&&(p.__s=p.state),null!=P.getDerivedStateFromProps&&(p.__s==p.state&&(p.__s=s({},p.__s)),s(p.__s,P.getDerivedStateFromProps(m,p.__s))),d=p.props,_=p.state,v)null==P.getDerivedStateFromProps&&null!=p.componentWillMount&&p.componentWillMount(),null!=p.componentDidMount&&p.__h.push(p.componentDidMount);else{if(null==P.getDerivedStateFromProps&&m!==d&&null!=p.componentWillReceiveProps&&p.componentWillReceiveProps(m,b),!p.__e&&null!=p.shouldComponentUpdate&&!1===p.shouldComponentUpdate(m,p.__s,b)||u.__v===t.__v){p.props=m,p.state=p.__s,u.__v!==t.__v&&(p.__d=!1),p.__v=u,u.__e=t.__e,u.__k=t.__k,p.__h.length&&f.push(p),C(u,e,l);break n}null!=p.componentWillUpdate&&p.componentWillUpdate(m,p.__s,b),null!=p.componentDidUpdate&&p.__h.push(function(){p.componentDidUpdate(d,_,w)})}p.context=b,p.props=m,p.state=p.__s,(a=n.__r)&&a(u),p.__d=!1,p.__v=u,p.__P=l,a=p.render(p.props,p.state,p.context),p.state=p.__s,null!=p.getChildContext&&(i=s(s({},i),p.getChildContext())),v||null==p.getSnapshotBeforeUpdate||(w=p.getSnapshotBeforeUpdate(d,_)),A=null!=a&&a.type==h&&null==a.key?a.props.children:a,k(l,Array.isArray(A)?A:[A],u,t,i,o,r,f,e,c),p.base=u.__e,p.__h.length&&f.push(p),x&&(p.__E=p.__=null),p.__e=!1}else null==r&&u.__v===t.__v?(u.__k=t.__k,u.__e=t.__e):u.__e=T(t.__e,u,t,i,o,r,f,c);(a=n.diffed)&&a(u)}catch(l){u.__v=null,n.__e(l,u,t)}return u.__e}function z(l,u){n.__c&&n.__c(u,l),l.some(function(u){try{l=u.__h,u.__h=[],l.some(function(n){n.call(u)})}catch(l){n.__e(l,u.__v)}})}function T(n,l,u,t,i,o,r,c){var s,a,p,v,h,y=u.props,d=l.props;if(i="svg"===l.type||i,null!=o)for(s=0;s<o.length;s++)if(null!=(a=o[s])&&((null===l.type?3===a.nodeType:a.localName===l.type)||n==a)){n=a,o[s]=null;break}if(null==n){if(null===l.type)return document.createTextNode(d);n=i?document.createElementNS("http://www.w3.org/2000/svg",l.type):document.createElement(l.type,d.is&&{is:d.is}),o=null,c=!1}if(null===l.type)y!==d&&n.data!==d&&(n.data=d);else{if(null!=o&&(o=e.slice.call(n.childNodes)),p=(y=u.props||f).dangerouslySetInnerHTML,v=d.dangerouslySetInnerHTML,!c){if(null!=o)for(y={},h=0;h<n.attributes.length;h++)y[n.attributes[h].name]=n.attributes[h].value;(v||p)&&(v&&p&&v.__html==p.__html||(n.innerHTML=v&&v.__html||""))}g(n,d,y,i,c),v?l.__k=[]:(s=l.props.children,k(n,Array.isArray(s)?s:[s],l,u,t,"foreignObject"!==l.type&&i,o,r,f,c)),c||("value"in d&&void 0!==(s=d.value)&&s!==n.value&&A(n,"value",s,y.value,!1),"checked"in d&&void 0!==(s=d.checked)&&s!==n.checked&&A(n,"checked",s,y.checked,!1))}return n}function $(l,u,t){try{"function"==typeof l?l(u):l.current=u}catch(l){n.__e(l,t)}}function j(l,u,t){var i,o,r;if(n.unmount&&n.unmount(l),(i=l.ref)&&(i.current&&i.current!==l.__e||$(i,null,u)),t||"function"==typeof l.type||(t=null!=(o=l.__e)),l.__e=l.__d=void 0,null!=(i=l.__c)){if(i.componentWillUnmount)try{i.componentWillUnmount()}catch(l){n.__e(l,u)}i.base=i.__P=null}if(i=l.__k)for(r=0;r<i.length;r++)i[r]&&j(i[r],u,t);null!=o&&a(o)}function H(n,l,u){return this.constructor(n,u)}function I(l,u,t){var i,r,c;n.__&&n.__(l,u),r=(i=t===o)?null:t&&t.__k||u.__k,l=p(h,null,[l]),c=[],N(u,(i?u:t||u).__k=l,r||f,f,void 0!==u.ownerSVGElement,t&&!i?[t]:r?null:u.childNodes.length?e.slice.call(u.childNodes):null,c,t||f,i),z(c,l)}n={__e:function(n,l){for(var u,t;l=l.__;)if((u=l.__c)&&!u.__)try{if(u.constructor&&null!=u.constructor.getDerivedStateFromError&&(t=!0,u.setState(u.constructor.getDerivedStateFromError(n))),null!=u.componentDidCatch&&(t=!0,u.componentDidCatch(n)),t)return w(u.__E=u)}catch(l){n=l}throw n}},l=function(n){return null!=n&&void 0===n.constructor},y.prototype.setState=function(n,l){var u;u=null!=this.__s&&this.__s!==this.state?this.__s:this.__s=s({},this.state),"function"==typeof n&&(n=n(u,this.props)),n&&s(u,n),null!=n&&this.__v&&(l&&this.__h.push(l),w(this))},y.prototype.forceUpdate=function(n){this.__v&&(this.__e=!0,n&&this.__h.push(n),w(this))},y.prototype.render=h,u=[],t="function"==typeof Promise?Promise.prototype.then.bind(Promise.resolve()):setTimeout,x.__r=0,o=f,r=0,exports.render=I,exports.hydrate=function(n,l){I(n,l,o)},exports.createElement=p,exports.h=p,exports.Fragment=h,exports.createRef=function(){return{current:null}},exports.isValidElement=l,exports.Component=y,exports.cloneElement=function(n,l){var u,t;for(t in l=s(s({},n.props),l),arguments.length>2&&(l.children=e.slice.call(arguments,2)),u={},l)"key"!==t&&"ref"!==t&&(u[t]=l[t]);return v(n.type,u,l.key||n.key,l.ref||n.ref,null)},exports.createContext=function(n){var l={},u={__c:"__cC"+r++,__:n,Consumer:function(n,l){return n.children(l)},Provider:function(n){var t,i=this;return this.getChildContext||(t=[],this.getChildContext=function(){return l[u.__c]=i,l},this.shouldComponentUpdate=function(n){i.props.value!==n.value&&t.some(function(l){l.context=n.value,w(l)})},this.sub=function(n){t.push(n);var l=n.componentWillUnmount;n.componentWillUnmount=function(){t.splice(t.indexOf(n),1),l&&l.call(n)}}),n.children}};return u.Consumer.contextType=u,u.Provider.__=u,u},exports.toChildArray=function n(l){return null==l||"boolean"==typeof l?[]:Array.isArray(l)?e.concat.apply([],l.map(n)):[l]},exports.__u=j,exports.options=n;
 
 
-},{}]},{},[11]);
+},{}]},{},[4]);

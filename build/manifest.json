@@ -1,5 +1,5 @@
 {
-    "name": "Better tabs",
+    "name": "Tab Panda",
     "description": "A better tab manager",
     "manifest_version": 2,
     "version": "1.0.0",
@@ -9,7 +9,6 @@
     "permissions": [
         "processes",
         "tabs",
-        "storage",
-        "contextMenus"
+        "storage"
     ]
 }

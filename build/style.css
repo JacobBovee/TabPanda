@@ -1,12 +1,9 @@
 html, body, #App {
-    width: 400px;
-    height: 420px;
     background-color: #292a2d;
     font-family: Verdana, Geneva, Tahoma, sans-serif;
     padding: 0;
     margin: 0;
     color: #e4e6e9;
-    font-size: 10px;
 }
 
 body * {
@@ -20,7 +17,7 @@ button {
     background: none;
     color: #8ab4f7;
     font-weight: 550;
-    width: 95px;
+    width: 9.5em;
     border-radius: 5px;
     cursor: pointer;
 }
@@ -228,22 +225,26 @@ li.tab span {
 /** Icons */
 .folder-icon {
     background-image: url('./assets/folder.svg');
-    width: 14px;
-    height: 14px;
+    background-size: cover;
+    background-position: 0;
+    width: 1.3em;
+    height: 1.3em;
     display: inline-block;
 }
 
 .link-icon {
     background-image: url('./assets/link.svg');
-    width: 14px;
-    height: 14px;
+    background-size: cover;
+    width: 1.4em;
+    height: 1.4em;
     display: inline-block;
 }
 
 .more-icon {
     background-image: url('./assets/more.svg');
-    width: 5px;
-    height: 14px;
+    background-size: cover;
+    width: .5em;
+    height: 1.5em;
     display: inline-block;
 }
 
@@ -258,3 +259,285 @@ li.tab span {
 .custom-icon {
     margin-right: 5px;
 }
+
+/* Popup Styling */
+@media only screen and (min-width : 0px) and (max-width : 500px) {
+    html, body, #App {
+        width: 400px;
+        height: 420px;
+        font-size: 10px;
+    }
+    
+    body * {
+        box-sizing: border-box;
+    }
+    
+    button {
+        padding: 6px 1px;
+        font-size: 1.2em;
+        border: 1px #3c4043 solid;
+        background: none;
+        color: #8ab4f7;
+        font-weight: 550;
+        width: 95px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    
+    button.primary {
+        background-color: #8ab4f7;
+        color: #292a2d;
+    }
+    
+    #wrapper {
+        width: 100%;
+        height: 100%;
+        padding: 10px;
+        display: flex;
+        flex-flow: column;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    header {
+        width: 90%;
+        padding: 10px 0px;
+        display: flex;
+        flex-flow: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    header h1 {
+        font-size: 1.5em;
+        padding: 0px;
+        margin: 0px;
+    }
+    
+    header button {
+        font-size: 1.2em;
+        float: right;
+        right: 0px;
+        position: relative;
+    }
+    
+    #tabTree {
+        width: 90%;
+        height: 80%;
+        border: 2px #3c4043 solid;
+        border-radius: 5px;
+        overflow-y: scroll;
+    }
+    
+    #tabTree ul.parent {
+        padding: 2px 0px;
+        margin: 0px;
+        list-style-position: inside;
+        width: 100%;
+        height: 100%;
+        user-select: none;
+        font-size: 1.2em;
+    }
+    
+    #tabTree ul.parent>ul {
+        padding: 0px;
+    }
+    
+    #tabTree ul.parent ul li {
+        padding: 5px 3px;
+        font-weight: 300;
+        width: 100%;
+        max-width: 100%;
+        list-style: none;
+        overflow: hidden;
+    }
+    
+    #tabTree ul.parent ul>li:hover,
+    #tabTree ul.parent li.folder ul>li:hover,
+    #tabTree ul.parent li.folder div:hover {
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+    
+    #tabTree ul.parent li.folder {
+        list-style: none;
+        width: 100%;
+        margin: 0px;
+        font-weight: 300;
+        cursor: pointer;
+    }
+    
+    #tabTree ul.parent li.folder div {
+        padding: 5px 3px;
+        width: 100%;
+        cursor: pointer;
+    }
+    
+    #tabTree ul.parent li i {
+        margin-right: 5px;
+    }
+    
+    #tabTree ul.parent li.folder input {
+        background: transparent;
+        border: none;
+        color: white;
+    }
+    
+    #tabTree ul.parent li.folder ul {
+        padding: 0px;
+    }
+    
+    #tabTree ul.parent li.folder ul li {
+        box-sizing: border-box;
+        padding-left: 35px;
+    }
+    
+    li.tab {
+        padding-right: 20px;
+        display: flex;
+        flex-flow: row;
+        justify-content: space-between;
+        cursor: auto;
+    }
+    
+    li.tab .more-icon {
+        right: 5px;
+        position: relative;
+        cursor: pointer;
+    }
+    
+    li.tab span {
+        max-width: 90%;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+    
+    #actionItems {
+        width: 90%;
+        display: flex;
+        flex-flow: row;
+        justify-content: center;
+        padding-top: 10px;
+    }
+    
+    #actionItems .col {
+        flex: 1;
+    }
+    
+    #actionItems .col.left {
+        display: flex;
+        justify-content: flex-start;
+    }
+    #actionItems .col.right {
+        display: flex;
+        justify-content: flex-end;
+    }
+    
+    #actionItems .col.right button:first-of-type {
+        margin-right: 8px;
+    }
+    
+    /** Context menu */
+    .context-menu {
+        width: 140px;
+        background-color: #2d2e31;
+        color: white;
+        box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.75);    border-radius: 2px;
+        font-weight: 600;
+        font-size: 1.2em;
+        padding: 0px;
+    }
+    .context-menu ul li {
+        padding: 8px;
+        cursor: pointer;
+    }
+    .context-menu ul li:hover {
+        background-color: #36383c;
+    }
+    
+    .context-menu ul {
+        list-style: none;
+        padding: 0px;
+    }
+    
+    .warning-overlay {
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        position: fixed;
+        background-color: rgba(0,0,0, 0.5);
+    }
+    
+    .warning-message {
+        background-color: #292a2c;
+        top: 0;
+        left: 10%;
+        width: 80%;
+        position: fixed;
+        padding: 10px;
+        border-bottom-right-radius: 5px;
+        border-bottom-left-radius: 5px;
+    }
+    
+    .warning-message h1 {
+        font-size: 1.4em;
+    }
+    
+}
+/* Popup Styling */
+@media only screen and (min-width : 500px) {
+    html, body, #App {
+        padding: 20px;
+        font-size: 15px;
+
+        background-color: #202124;
+    }
+
+    button {
+        padding: 5px;
+    }
+
+    button.primary {
+        background-color: #8ab4f7;
+        color: #292a2d;
+    }
+    
+    .folder-wrapper {
+        width: 100%;
+        height: 100%;
+        padding: 10px;
+        display: flex;
+        flex-flow: column;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    header {
+        padding: 10px 0px;
+    }
+
+    #tabTree {
+        background-color: #292a2d;
+        overflow: hidden;
+    }
+    
+    #tabTree ul.parent {
+        padding: 4px 0px;
+    }
+    
+    #tabTree ul.parent>ul {
+        padding: 0px;
+    }
+    
+    #tabTree ul.parent ul li {
+        padding: 10px;
+    }
+
+    .folder-title {
+        display: flex;
+        justify-items: center;
+    }
+}
+
+

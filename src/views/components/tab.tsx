@@ -1,5 +1,6 @@
 import { h } from 'preact';
 import Icon from './icon';
+import { DATA_TAB_ID_ATTRIBUTE_NAME } from '../../constants';
 
 interface IProps {
     tab: chrome.tabs.Tab;
@@ -8,5 +9,6 @@ interface IProps {
 export default function Tab(props: IProps) {
     const { tab } = props;
     const ico = tab.favIconUrl ? <Icon type={'custom'} iconSrc={tab.favIconUrl} /> : <Icon type="link" />;
-    return (<li class="tab" data-tab-id={tab.index}><span>{ico}{tab.title}</span><Icon className='more' type={'more'} /></li>);
+    const dataAttributes = { [DATA_TAB_ID_ATTRIBUTE_NAME]: tab.id };
+    return (<li class="tab" {...dataAttributes}><span>{ico}{tab.title}</span><Icon className='more' type={'more'} /></li>);
 }
