@@ -124,6 +124,14 @@ header button {
     padding: 0px;
 }
 
+#tabTree ul.parent li.folder .triangle-icon {
+    transform: rotate(90deg);
+}
+
+#tabTree ul.parent li.collapsed .triangle-icon {
+    transform: rotate(0deg);
+}
+
 #tabTree ul.parent li.folder ul li {
     box-sizing: border-box;
     padding-left: 35px;
@@ -252,7 +260,7 @@ li.tab span {
 .triangle-icon {
     background-image: url('./assets/triangle.svg');
     width: 5px;
-    height: 8px;
+    height: 10px;
     display: inline-block;
 }
 
@@ -370,6 +378,8 @@ li.tab span {
         padding: 5px 3px;
         width: 100%;
         cursor: pointer;
+        display: flex;
+        align-items: center;
     }
     
     #tabTree ul.parent li i {

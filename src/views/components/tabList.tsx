@@ -8,7 +8,11 @@ interface IProps {
     tabs?: chrome.tabs.Tab[];
 }
 
-export default class TabList extends Component<IProps, {}> {
+interface IState {
+    collapsed?: boolean;
+}
+
+export default class TabList extends Component<IProps, IState> {
     protected input?: HTMLInputElement | null;
     constructor(props: IProps) {
         super(props);
@@ -16,10 +20,11 @@ export default class TabList extends Component<IProps, {}> {
         this.saveFolderName = this.saveFolderName.bind(this);
         this.handleInputKeyDown = this.handleInputKeyDown.bind(this);
         this.inputField = this.inputField.bind(this);
+        this.toggleCollapse = this.toggleCollapse.bind(this);
     }
     
     componentDidUpdate() {
-        const { folder, tabs } = this.props;
+        const { folder } = this.props;
         if (folder && folder.editTitle && this.input) {
             this.input.focus();
         }
@@ -52,8 +57,10 @@ export default class TabList extends Component<IProps, {}> {
         if (document.activeElement) {
             try {
                 (document.activeElement as HTMLElement).blur();
-            } catch(e) {
-                // no autofocus
+                this.input?.focus();
+            }
+            catch(e) {
+                // no autofocus available
             }
         }
         return (
@@ -68,22 +75,34 @@ export default class TabList extends Component<IProps, {}> {
         );
     }
 
+    protected toggleCollapse() {
+        const { collapsed } = this.state;
+        this.setState({ collapsed: !collapsed });
+    }
+
     render() {
         const { tabs, folder } = this.props;
+        const { collapsed } = this.state;
 
         if (folder) {
             return (
                 <div>
-                    <li class="folder" data-folder={`${folder.id}`}><div>
+                    <li
+                        className={`folder ${collapsed ? 'collapsed' : ''}`}
+                        data-folder={`${folder.id}`}
+                        onClick={this.toggleCollapse}
+                    ><div>
+                        <Icon type='triangle' />
                         <Icon type='folder' />
                         {folder.editTitle ?
                             this.inputField()
                             :
                             folder.name
                         }</div>
-                        <ul>
-                            {folder && folder.tabs.map((tab) => <Tab tab={tab} />)}
-                        </ul>
+                        {!collapsed && 
+                            <ul>
+                                {folder && folder.tabs.map((tab) => <Tab tab={tab} />)}
+                            </ul>}
                     </li>
                 </div>
             );
