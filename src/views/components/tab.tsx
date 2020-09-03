@@ -21,13 +21,14 @@ export default class Tab extends Component<IProps, {}> {
                     onDragStart={(ev: DragEvent) => tab.id && ev.dataTransfer?.setData('tabId', tab.id.toString())}
                     onDrag={(ev: DragEvent) => {}}
                     onDragEnd={(ev: DragEvent) => {
-                        if (folder) {
-                            folder.deleteTab(tab);
-                            updateFolder();
-                        }
-                        else {
-                            TabManager.collapseTab(tab);
-                            updateFolder();
+                        if (folder && ev.target) {
+                            const target = ev.target as Element;
+                            const targetId = target.getAttribute('data-folder');
+                            if (targetId && parseInt(targetId) !== folder.id) {
+                                debugger;
+                                folder.deleteTab(tab);
+                                updateFolder();
+                            }
                         }
                     }}
                     class="tab" {...dataAttributes}>

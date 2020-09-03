@@ -90,9 +90,16 @@ export default class FolderItem extends Component<IProps, IState> {
         if (ev.target && ev.dataTransfer) {
             const tabId = parseInt(ev.dataTransfer.getData('tabId'));
             const tab = getTabById(tabId);
+            ev.dataTransfer.setData('droppedFolder', folder.id.toString());
             if (tab) {
-                folder.setTab(tab);
-                this.forceUpdate();
+                if (!folder.tabs.includes(tab)) {
+                    folder.setTab(tab);
+                    this.forceUpdate();
+                }
+                else {
+                    ev.stopPropagation();
+                    ev.preventDefault();
+                }
             }
         }
     }

@@ -683,9 +683,16 @@ var FolderItem = /** @class */ (function (_super) {
         if (ev.target && ev.dataTransfer) {
             var tabId = parseInt(ev.dataTransfer.getData('tabId'));
             var tab = getTabById(tabId);
+            ev.dataTransfer.setData('droppedFolder', folder.id.toString());
             if (tab) {
-                folder.setTab(tab);
-                this.forceUpdate();
+                if (!folder.tabs.includes(tab)) {
+                    folder.setTab(tab);
+                    this.forceUpdate();
+                }
+                else {
+                    ev.stopPropagation();
+                    ev.preventDefault();
+                }
             }
         }
     };
@@ -816,7 +823,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var preact_1 = require("preact");
 var icon_1 = __importDefault(require("./icon"));
 var constants_1 = require("../../constants");
-var tabManager_1 = require("../../manager/tabManager");
 var Tab = /** @class */ (function (_super) {
     __extends(Tab, _super);
     function Tab() {
@@ -828,13 +834,14 @@ var Tab = /** @class */ (function (_super) {
         var ico = tab.favIconUrl ? preact_1.h(icon_1.default, { type: 'custom', iconSrc: tab.favIconUrl }) : preact_1.h(icon_1.default, { type: "link" });
         var dataAttributes = (_a = {}, _a[constants_1.DATA_TAB_ID_ATTRIBUTE_NAME] = tab.id, _a);
         return (preact_1.h("li", __assign({ draggable: true, onDragStart: function (ev) { var _a; return tab.id && ((_a = ev.dataTransfer) === null || _a === void 0 ? void 0 : _a.setData('tabId', tab.id.toString())); }, onDrag: function (ev) { }, onDragEnd: function (ev) {
-                if (folder) {
-                    folder.deleteTab(tab);
-                    updateFolder();
-                }
-                else {
-                    tabManager_1.TabManager.collapseTab(tab);
-                    updateFolder();
+                if (folder && ev.target) {
+                    var target = ev.target;
+                    var targetId = target.getAttribute('data-folder');
+                    if (targetId && parseInt(targetId) !== folder.id) {
+                        debugger;
+                        folder.deleteTab(tab);
+                        updateFolder();
+                    }
                 }
             }, class: "tab" }, dataAttributes),
             preact_1.h("span", null,
@@ -846,7 +853,7 @@ var Tab = /** @class */ (function (_super) {
 }(preact_1.Component));
 exports.default = Tab;
 
-},{"../../constants":1,"../../manager/tabManager":2,"./icon":9,"preact":16}],11:[function(require,module,exports){
+},{"../../constants":1,"./icon":9,"preact":16}],11:[function(require,module,exports){
 "use strict";
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
