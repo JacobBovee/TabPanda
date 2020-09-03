@@ -5,7 +5,7 @@ import ContextMenu from './contextMenu';
 
 interface IProps {
     tabFolders?: TabFolder[];
-    activeTabs?: chrome.tabs.Tab[];
+    activeTabs?: TabFolder;
 }
 
 interface IState {
@@ -20,8 +20,23 @@ export default class TabTree extends Component<IProps, IState> {
         };
     }
 
-    contextMenuClick = (event: MouseEvent) => {
+    protected contextMenuClick = (event: MouseEvent) => {
         this.setState({ contextVisible: true });
+    }
+
+    protected allTabs() {
+        const { tabFolders, activeTabs } = this.props;
+        const allTabs: chrome.tabs.Tab[] = [];
+        const pushFolder = (folder: TabFolder[]) => folder
+            .map((tabFolder) => tabFolder.tabs)
+            .forEach((folderTab) => allTabs.push(...folderTab));
+        if (tabFolders) {
+            pushFolder(tabFolders);
+        }
+        if (activeTabs) {
+            allTabs.push(...activeTabs.tabs);
+        }
+        return allTabs;
     }
 
     render() {
@@ -31,9 +46,9 @@ export default class TabTree extends Component<IProps, IState> {
             <div id="tabTree">
                 <ul class="parent">
                     {tabFolders && tabFolders.map((folder) => {
-                        return <TabList folder={folder} />
+                        return <TabList folder={folder} allTabs={this.allTabs()} />
                     })}
-                    {activeTabs && <TabList tabs={activeTabs} />}
+                    {activeTabs && <TabList folder={activeTabs} allTabs={this.allTabs()} />}
                 </ul>
             </div>
         )

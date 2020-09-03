@@ -14,7 +14,6 @@ interface IProps {
 
 interface IState {
     tabFolders: TabFolder[];
-    activeTabs: chrome.tabs.Tab[];
     warning?: boolean;
 }
 
@@ -23,7 +22,6 @@ export default class Popup extends Component<IProps, IState> {
         super(props);
 
         this.setTabFolders = this.setTabFolders.bind(this);
-        this.setActiveTabs = this.setActiveTabs.bind(this);
         this.collapseActiveAction = this.collapseActiveAction.bind(this);
         this.saveAction = this.saveAction.bind(this);
         this.cancelAction = this.cancelAction.bind(this);
@@ -35,25 +33,19 @@ export default class Popup extends Component<IProps, IState> {
         const { tabManager } = this.props;
 
         this.setTabFolders(tabManager.tabFolders);
-        TabManager.getActiveTabs(this.setActiveTabs, true);
     }
 
     setTabFolders(folders: TabFolder[]) {
         this.setState({ tabFolders: folders });
     }
     
-    setActiveTabs(tabs: chrome.tabs.Tab[]) {
-        this.setState({ activeTabs: tabs });
-    }
-
     collapseActiveAction() {
         const { tabManager } = this.props;
-        const { activeTabs } = this.state;
-        tabManager.createTabFolder('New folder', activeTabs, true);
-
+        const { activeTabs } = tabManager;
+        tabManager.createTabFolder('New folder', activeTabs.tabs, true);
+        activeTabs.tabs = [];
         this.setState({
             tabFolders: tabManager.tabFolders,
-            activeTabs: []
         });
     }
 
@@ -69,7 +61,7 @@ export default class Popup extends Component<IProps, IState> {
 
     saveAction() {
         const { tabManager } = this.props;
-        tabManager.store(this.state);
+        tabManager.store({ tabFolders: this.state.tabFolders });
     }
 
     updateState(tabManager: TabManager) {
@@ -78,7 +70,8 @@ export default class Popup extends Component<IProps, IState> {
 
     render() {
         const { tabManager } = this.props;
-        const { tabFolders, activeTabs, warning } = this.state;
+        const { tabFolders, warning } = this.state;
+        const { activeTabs } = tabManager;
 
         const actions = [
             {
@@ -145,13 +138,6 @@ export default class Popup extends Component<IProps, IState> {
                         if (folderTab) {
                             TabFolder.deleteTabStatic(folder, folderTab);
                         }
-                    }
-                    else {
-                        const activeTab = tabManager.getTabFromEvent(event, activeTabs, DATA_TAB_ID_ATTRIBUTE_NAME);
-                        if (activeTab) {
-                            const tabs = activeTabs.filter((_tab) => activeTab.id !== _tab.id);
-                            this.setActiveTabs(tabs);
-                        }         
                     }
                     this.updateState(tabManager);
                 },

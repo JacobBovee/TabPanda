@@ -1,18 +1,28 @@
 import { findParentWithMatchingAttribute } from "../utils";
+import Tab from "../views/components/tab";
 
 interface ITabManagerState {
     tabFolders: TabFolder[];
+}
+
+interface IFolderState {
+    name: string;
+    tabs: chrome.tabs.Tab[];
+    id: number;
+    editTitle: boolean;
     activeTabs: chrome.tabs.Tab[];
 }
 
 export class TabManager {
     public tabFolders: TabFolder[];
     public currentWindow?: number;
+    public activeTabs: TabFolder;
 
     constructor() {
         this.tabFolders = [];
 
         this.mountExtension();
+        this.activeTabs = new TabFolder('active_tabs_folder', -1);
     }
 
     protected setCurrentWindow(cb?: () => void) {
@@ -55,13 +65,13 @@ export class TabManager {
         TabManager.getActiveTabs(cb);
     }
 
-    public collapseTabs(tabs: chrome.tabs.Tab[]) {
+    public static collapseTabs(tabs: chrome.tabs.Tab[]) {
         for (const tab in tabs) {
-           this.collapseTab(tabs[tab]); 
+           TabManager.collapseTab(tabs[tab]); 
         }
     }
 
-    public collapseTab(tab: chrome.tabs.Tab) {
+    public static collapseTab(tab: chrome.tabs.Tab) {
         if (tab.id) {
             chrome.tabs.remove(tab.id);
         }
@@ -120,7 +130,7 @@ export class TabManager {
         const cb = (tabs: chrome.tabs.Tab[]) => {
             tabs.map((tab) => {
                 if (this.getFolderIdFromTab(tab) === id) {
-                    this.collapseTab(tab);
+                    TabManager.collapseTab(tab);
                 }
             });
         }
@@ -132,7 +142,7 @@ export class TabManager {
             folderTabs.forEach((folderTab) => {
                 const id = this.getFolderIdFromTab(folderTab);
                 if (id && !this.getTabFolderById(id)) {
-                    this.collapseTab(folderTab);
+                    TabManager.collapseTab(folderTab);
                 }
             });
         }
@@ -163,7 +173,17 @@ export class TabManager {
     protected updateActiveTabs(newActiveTabs: chrome.tabs.Tab[], prevActiveTabs: chrome.tabs.Tab[]) {
         const activeIds = this.getTabsIds(newActiveTabs);
         const collapseTabs = prevActiveTabs.filter((tab) => !activeIds.includes(tab.id));
-        collapseTabs.forEach((tab) => this.collapseTab(tab));
+        collapseTabs.forEach((tab) => TabManager.collapseTab(tab));
+    }
+
+    protected setActiveTabs(cb?: (manager: TabManager) => void) {
+        TabManager.getActiveTabs((tabs) => {
+            this.activeTabs.setTabs(tabs);
+            if (cb) {
+                cb(this);
+            }
+        }, true)
+
     }
 
     protected mapManagerStateToObject(managerState: ITabManagerState, cb?: (manager: TabManager) => void) {
@@ -171,16 +191,19 @@ export class TabManager {
             let property = (this as any)[propName];
             if (property) {
                 const statePropValue: any = (managerState as any)[propName];
-                (this as any)[propName] = statePropValue;
-                if (cb) {
-                    cb(this);
+                if (propName === 'tabFolders') {
+                    this.tabFolders = statePropValue.map((folder: IFolderState) => new TabFolder(folder.name, folder.id, folder.tabs));
+                }
+                else if (propName !== 'activeTabs') {
+                    (this as any)[propName] = statePropValue;
+                    this.setActiveTabs(cb);
                 }
             }
         }
     }
 
     public mountExtension(cb?: (manager: TabManager) => void) {
-        const _cb = (tabManager: ITabManagerState) => {
+        const _cb = (tabManager: ITabManagerState) => {;
             if (!tabManager) {
                 this.store();
             } 
@@ -195,7 +218,7 @@ export class TabManager {
     protected async updateBrowser(manager?: ITabManagerState) {
         if (manager) {
             const activeTabsCb = (prevTabs: chrome.tabs.Tab[]) => {
-                this.updateActiveTabs(manager.activeTabs, prevTabs)
+                this.updateActiveTabs(this.activeTabs.tabs, prevTabs)
             };
             await TabManager.getActiveTabs(
                 (prevTabs) => this.createFolderWindows(manager.tabFolders, prevTabs),

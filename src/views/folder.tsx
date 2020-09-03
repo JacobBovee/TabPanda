@@ -52,6 +52,7 @@ export default class Folder extends Component<IProps, IState> {
     render() {
         const { tabManager } = this.state;
         const tabFolder = this.getFolder();
+        const { activeTabs } = tabManager;
 
         const actions = [
             {
@@ -100,7 +101,7 @@ export default class Folder extends Component<IProps, IState> {
                         actionFn={this.restoreFolder} 
                         title={<div className='folder-title'><Icon type="folder" /> {tabFolder.name}</div>}
                     />
-                    <TabTree activeTabs={tabFolder.tabs}></TabTree>
+                    <TabTree activeTabs={activeTabs}></TabTree>
                     <ContextMenu actions={actions}></ContextMenu>
                 </div>
             );

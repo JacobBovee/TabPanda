@@ -5,6 +5,8 @@ import Tab from './tab';
 
 interface IProps {
     folder: TabFolder;
+    updateFolder?: (folder: TabFolder) => void;
+    getTabById: (id: number) => chrome.tabs.Tab | undefined;
 }
 
 interface IState {
@@ -20,6 +22,8 @@ export default class FolderItem extends Component<IProps, IState> {
         this.handleInputKeyDown = this.handleInputKeyDown.bind(this);
         this.inputField = this.inputField.bind(this);
         this.toggleCollapse = this.toggleCollapse.bind(this);
+        this.onTabDrop = this.onTabDrop.bind(this);
+        this.updateFolder = this.updateFolder.bind(this);
     }
 
     componentDidUpdate() {
@@ -79,16 +83,43 @@ export default class FolderItem extends Component<IProps, IState> {
         this.setState({ collapsed: !collapsed });
     }
 
+    protected onTabDrop(ev: DragEvent) {
+        ev.preventDefault();
+        const { getTabById, folder } = this.props;
+
+        if (ev.target && ev.dataTransfer) {
+            const tabId = parseInt(ev.dataTransfer.getData('tabId'));
+            const tab = getTabById(tabId);
+            if (tab) {
+                folder.setTab(tab);
+                this.forceUpdate();
+            }
+        }
+    }
+
+    protected updateFolder() {
+        this.forceUpdate();
+    }
+
     render() {
         const { collapsed } = this.state;
         const { folder } = this.props;
+        if (folder.id === -1) {
+            return (<ul>{folder.tabs.map((tab) => <Tab updateFolder={this.updateFolder} folder={folder} tab={tab} />)}</ul>)
+        }
+
         return (
-            <div>
+            <div
+                onDragOver={(event) => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                }}
+                onDrop={this.onTabDrop}
+            >
                 <li
                     className={`folder ${collapsed ? 'collapsed' : ''}`}
                     data-folder={`${folder.id}`}
-                    onClick={this.toggleCollapse}
-                ><div>
+                ><div onClick={this.toggleCollapse}>
                     <Icon type='triangle' />
                     <Icon type='folder' />
                     {folder.editTitle ?
@@ -98,7 +129,7 @@ export default class FolderItem extends Component<IProps, IState> {
                     }</div>
                     {!collapsed && 
                         <ul>
-                            {folder && folder.tabs.map((tab) => <Tab tab={tab} />)}
+                            {folder && folder.tabs.map((tab) => <Tab updateFolder={this.updateFolder} folder={folder} tab={tab} />)}
                         </ul>}
                 </li>
             </div>

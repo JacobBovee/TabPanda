@@ -57,6 +57,7 @@ var TabManager = /** @class */ (function () {
     function TabManager() {
         this.tabFolders = [];
         this.mountExtension();
+        this.activeTabs = new TabFolder('active_tabs_folder', -1);
     }
     TabManager.prototype.setCurrentWindow = function (cb) {
         var _this = this;
@@ -94,12 +95,12 @@ var TabManager = /** @class */ (function () {
         };
         TabManager.getActiveTabs(cb);
     };
-    TabManager.prototype.collapseTabs = function (tabs) {
+    TabManager.collapseTabs = function (tabs) {
         for (var tab in tabs) {
-            this.collapseTab(tabs[tab]);
+            TabManager.collapseTab(tabs[tab]);
         }
     };
-    TabManager.prototype.collapseTab = function (tab) {
+    TabManager.collapseTab = function (tab) {
         if (tab.id) {
             chrome.tabs.remove(tab.id);
         }
@@ -153,7 +154,7 @@ var TabManager = /** @class */ (function () {
         var cb = function (tabs) {
             tabs.map(function (tab) {
                 if (_this.getFolderIdFromTab(tab) === id) {
-                    _this.collapseTab(tab);
+                    TabManager.collapseTab(tab);
                 }
             });
         };
@@ -165,7 +166,7 @@ var TabManager = /** @class */ (function () {
             folderTabs.forEach(function (folderTab) {
                 var id = _this.getFolderIdFromTab(folderTab);
                 if (id && !_this.getTabFolderById(id)) {
-                    _this.collapseTab(folderTab);
+                    TabManager.collapseTab(folderTab);
                 }
             });
         };
@@ -189,19 +190,30 @@ var TabManager = /** @class */ (function () {
         return tabs.map(function (tab) { return tab.id; });
     };
     TabManager.prototype.updateActiveTabs = function (newActiveTabs, prevActiveTabs) {
-        var _this = this;
         var activeIds = this.getTabsIds(newActiveTabs);
         var collapseTabs = prevActiveTabs.filter(function (tab) { return !activeIds.includes(tab.id); });
-        collapseTabs.forEach(function (tab) { return _this.collapseTab(tab); });
+        collapseTabs.forEach(function (tab) { return TabManager.collapseTab(tab); });
+    };
+    TabManager.prototype.setActiveTabs = function (cb) {
+        var _this = this;
+        TabManager.getActiveTabs(function (tabs) {
+            _this.activeTabs.setTabs(tabs);
+            if (cb) {
+                cb(_this);
+            }
+        }, true);
     };
     TabManager.prototype.mapManagerStateToObject = function (managerState, cb) {
         for (var propName in managerState) {
             var property = this[propName];
             if (property) {
                 var statePropValue = managerState[propName];
-                this[propName] = statePropValue;
-                if (cb) {
-                    cb(this);
+                if (propName === 'tabFolders') {
+                    this.tabFolders = statePropValue.map(function (folder) { return new TabFolder(folder.name, folder.id, folder.tabs); });
+                }
+                else if (propName !== 'activeTabs') {
+                    this[propName] = statePropValue;
+                    this.setActiveTabs(cb);
                 }
             }
         }
@@ -209,6 +221,7 @@ var TabManager = /** @class */ (function () {
     TabManager.prototype.mountExtension = function (cb) {
         var _this = this;
         var _cb = function (tabManager) {
+            ;
             if (!tabManager) {
                 _this.store();
             }
@@ -228,7 +241,7 @@ var TabManager = /** @class */ (function () {
                     case 0:
                         if (!manager) return [3 /*break*/, 4];
                         activeTabsCb = function (prevTabs) {
-                            _this.updateActiveTabs(manager.activeTabs, prevTabs);
+                            _this.updateActiveTabs(_this.activeTabs.tabs, prevTabs);
                         };
                         return [4 /*yield*/, TabManager.getActiveTabs(function (prevTabs) { return _this.createFolderWindows(manager.tabFolders, prevTabs); }, false)];
                     case 1:
@@ -615,6 +628,8 @@ var FolderItem = /** @class */ (function (_super) {
         _this.handleInputKeyDown = _this.handleInputKeyDown.bind(_this);
         _this.inputField = _this.inputField.bind(_this);
         _this.toggleCollapse = _this.toggleCollapse.bind(_this);
+        _this.onTabDrop = _this.onTabDrop.bind(_this);
+        _this.updateFolder = _this.updateFolder.bind(_this);
         return _this;
     }
     FolderItem.prototype.componentDidUpdate = function () {
@@ -662,12 +677,34 @@ var FolderItem = /** @class */ (function (_super) {
         var collapsed = this.state.collapsed;
         this.setState({ collapsed: !collapsed });
     };
+    FolderItem.prototype.onTabDrop = function (ev) {
+        ev.preventDefault();
+        var _a = this.props, getTabById = _a.getTabById, folder = _a.folder;
+        if (ev.target && ev.dataTransfer) {
+            var tabId = parseInt(ev.dataTransfer.getData('tabId'));
+            var tab = getTabById(tabId);
+            if (tab) {
+                folder.setTab(tab);
+                this.forceUpdate();
+            }
+        }
+    };
+    FolderItem.prototype.updateFolder = function () {
+        this.forceUpdate();
+    };
     FolderItem.prototype.render = function () {
+        var _this = this;
         var collapsed = this.state.collapsed;
         var folder = this.props.folder;
-        return (preact_1.h("div", null,
-            preact_1.h("li", { className: "folder " + (collapsed ? 'collapsed' : ''), "data-folder": "" + folder.id, onClick: this.toggleCollapse },
-                preact_1.h("div", null,
+        if (folder.id === -1) {
+            return (preact_1.h("ul", null, folder.tabs.map(function (tab) { return preact_1.h(tab_1.default, { updateFolder: _this.updateFolder, folder: folder, tab: tab }); })));
+        }
+        return (preact_1.h("div", { onDragOver: function (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }, onDrop: this.onTabDrop },
+            preact_1.h("li", { className: "folder " + (collapsed ? 'collapsed' : ''), "data-folder": "" + folder.id },
+                preact_1.h("div", { onClick: this.toggleCollapse },
                     preact_1.h(icon_1.default, { type: 'triangle' }),
                     preact_1.h(icon_1.default, { type: 'folder' }),
                     folder.editTitle ?
@@ -675,7 +712,7 @@ var FolderItem = /** @class */ (function (_super) {
                         :
                             folder.name),
                 !collapsed &&
-                    preact_1.h("ul", null, folder && folder.tabs.map(function (tab) { return preact_1.h(tab_1.default, { tab: tab }); })))));
+                    preact_1.h("ul", null, folder && folder.tabs.map(function (tab) { return preact_1.h(tab_1.default, { updateFolder: _this.updateFolder, folder: folder, tab: tab }); })))));
     };
     return FolderItem;
 }(preact_1.Component));
@@ -748,6 +785,19 @@ exports.default = Icon;
 
 },{"preact":16}],10:[function(require,module,exports){
 "use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 var __assign = (this && this.__assign) || function () {
     __assign = Object.assign || function(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -766,20 +816,37 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var preact_1 = require("preact");
 var icon_1 = __importDefault(require("./icon"));
 var constants_1 = require("../../constants");
-function Tab(props) {
-    var _a;
-    var tab = props.tab;
-    var ico = tab.favIconUrl ? preact_1.h(icon_1.default, { type: 'custom', iconSrc: tab.favIconUrl }) : preact_1.h(icon_1.default, { type: "link" });
-    var dataAttributes = (_a = {}, _a[constants_1.DATA_TAB_ID_ATTRIBUTE_NAME] = tab.id, _a);
-    return (preact_1.h("li", __assign({ class: "tab" }, dataAttributes),
-        preact_1.h("span", null,
-            ico,
-            tab.title),
-        preact_1.h(icon_1.default, { className: 'more', type: 'more' })));
-}
+var tabManager_1 = require("../../manager/tabManager");
+var Tab = /** @class */ (function (_super) {
+    __extends(Tab, _super);
+    function Tab() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    Tab.prototype.render = function () {
+        var _a;
+        var _b = this.props, tab = _b.tab, folder = _b.folder, updateFolder = _b.updateFolder;
+        var ico = tab.favIconUrl ? preact_1.h(icon_1.default, { type: 'custom', iconSrc: tab.favIconUrl }) : preact_1.h(icon_1.default, { type: "link" });
+        var dataAttributes = (_a = {}, _a[constants_1.DATA_TAB_ID_ATTRIBUTE_NAME] = tab.id, _a);
+        return (preact_1.h("li", __assign({ draggable: true, onDragStart: function (ev) { var _a; return tab.id && ((_a = ev.dataTransfer) === null || _a === void 0 ? void 0 : _a.setData('tabId', tab.id.toString())); }, onDrag: function (ev) { }, onDragEnd: function (ev) {
+                if (folder) {
+                    folder.deleteTab(tab);
+                    updateFolder();
+                }
+                else {
+                    tabManager_1.TabManager.collapseTab(tab);
+                    updateFolder();
+                }
+            }, class: "tab" }, dataAttributes),
+            preact_1.h("span", null,
+                ico,
+                tab.title),
+            preact_1.h(icon_1.default, { className: 'more', type: 'more' })));
+    };
+    return Tab;
+}(preact_1.Component));
 exports.default = Tab;
 
-},{"../../constants":1,"./icon":9,"preact":16}],11:[function(require,module,exports){
+},{"../../constants":1,"../../manager/tabManager":2,"./icon":9,"preact":16}],11:[function(require,module,exports){
 "use strict";
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
@@ -799,27 +866,31 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var preact_1 = require("preact");
-var tab_1 = __importDefault(require("./tab"));
 var folderItem_1 = __importDefault(require("./folderItem"));
 var TabList = /** @class */ (function (_super) {
     __extends(TabList, _super);
-    function TabList() {
-        return _super !== null && _super.apply(this, arguments) || this;
+    function TabList(props) {
+        var _this = _super.call(this, props) || this;
+        _this.getTabById = _this.getTabById.bind(_this);
+        _this.updateFolder = _this.updateFolder.bind(_this);
+        return _this;
     }
+    TabList.prototype.getTabById = function (id) {
+        var allTabs = this.props.allTabs;
+        return allTabs.find(function (tab) { return tab.id === id; });
+    };
+    TabList.prototype.updateFolder = function () {
+        this.forceUpdate();
+    };
     TabList.prototype.render = function () {
-        var _a = this.props, tabs = _a.tabs, folder = _a.folder;
-        if (folder) {
-            return preact_1.h(folderItem_1.default, { folder: folder });
-        }
-        if (tabs) {
-            return (preact_1.h("ul", null, tabs && tabs.map(function (tab) { return preact_1.h(tab_1.default, { tab: tab }); })));
-        }
+        var folder = this.props.folder;
+        return preact_1.h(folderItem_1.default, { getTabById: this.getTabById, folder: folder });
     };
     return TabList;
 }(preact_1.Component));
 exports.default = TabList;
 
-},{"./folderItem":7,"./tab":10,"preact":16}],12:[function(require,module,exports){
+},{"./folderItem":7,"preact":16}],12:[function(require,module,exports){
 "use strict";
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
@@ -852,14 +923,29 @@ var TabTree = /** @class */ (function (_super) {
         };
         return _this;
     }
+    TabTree.prototype.allTabs = function () {
+        var _a = this.props, tabFolders = _a.tabFolders, activeTabs = _a.activeTabs;
+        var allTabs = [];
+        var pushFolder = function (folder) { return folder
+            .map(function (tabFolder) { return tabFolder.tabs; })
+            .forEach(function (folderTab) { return allTabs.push.apply(allTabs, folderTab); }); };
+        if (tabFolders) {
+            pushFolder(tabFolders);
+        }
+        if (activeTabs) {
+            allTabs.push.apply(allTabs, activeTabs.tabs);
+        }
+        return allTabs;
+    };
     TabTree.prototype.render = function () {
+        var _this = this;
         var _a = this.props, tabFolders = _a.tabFolders, activeTabs = _a.activeTabs;
         return (preact_1.h("div", { id: "tabTree" },
             preact_1.h("ul", { class: "parent" },
                 tabFolders && tabFolders.map(function (folder) {
-                    return preact_1.h(tabList_1.default, { folder: folder });
+                    return preact_1.h(tabList_1.default, { folder: folder, allTabs: _this.allTabs() });
                 }),
-                activeTabs && preact_1.h(tabList_1.default, { tabs: activeTabs }))));
+                activeTabs && preact_1.h(tabList_1.default, { folder: activeTabs, allTabs: this.allTabs() }))));
     };
     return TabTree;
 }(preact_1.Component));
@@ -939,6 +1025,7 @@ var Folder = /** @class */ (function (_super) {
         var _this = this;
         var tabManager = this.state.tabManager;
         var tabFolder = this.getFolder();
+        var activeTabs = tabManager.activeTabs;
         var actions = [
             {
                 title: 'Restore tab',
@@ -983,7 +1070,7 @@ var Folder = /** @class */ (function (_super) {
                         preact_1.h(icon_1.default, { type: "folder" }),
                         " ",
                         tabFolder.name) }),
-                preact_1.h(tabTree_1.default, { activeTabs: tabFolder.tabs }),
+                preact_1.h(tabTree_1.default, { activeTabs: activeTabs }),
                 preact_1.h(contextMenu_1.default, { actions: actions })));
         }
     };
@@ -1023,7 +1110,6 @@ var Popup = /** @class */ (function (_super) {
     function Popup(props) {
         var _this = _super.call(this, props) || this;
         _this.setTabFolders = _this.setTabFolders.bind(_this);
-        _this.setActiveTabs = _this.setActiveTabs.bind(_this);
         _this.collapseActiveAction = _this.collapseActiveAction.bind(_this);
         _this.saveAction = _this.saveAction.bind(_this);
         _this.cancelAction = _this.cancelAction.bind(_this);
@@ -1034,21 +1120,17 @@ var Popup = /** @class */ (function (_super) {
     Popup.prototype.componentDidMount = function () {
         var tabManager = this.props.tabManager;
         this.setTabFolders(tabManager.tabFolders);
-        tabManager_1.TabManager.getActiveTabs(this.setActiveTabs, true);
     };
     Popup.prototype.setTabFolders = function (folders) {
         this.setState({ tabFolders: folders });
     };
-    Popup.prototype.setActiveTabs = function (tabs) {
-        this.setState({ activeTabs: tabs });
-    };
     Popup.prototype.collapseActiveAction = function () {
         var tabManager = this.props.tabManager;
-        var activeTabs = this.state.activeTabs;
-        tabManager.createTabFolder('New folder', activeTabs, true);
+        var activeTabs = tabManager.activeTabs;
+        tabManager.createTabFolder('New folder', activeTabs.tabs, true);
+        activeTabs.tabs = [];
         this.setState({
             tabFolders: tabManager.tabFolders,
-            activeTabs: []
         });
     };
     Popup.prototype.newFolderAction = function () {
@@ -1061,7 +1143,7 @@ var Popup = /** @class */ (function (_super) {
     };
     Popup.prototype.saveAction = function () {
         var tabManager = this.props.tabManager;
-        tabManager.store(this.state);
+        tabManager.store({ tabFolders: this.state.tabFolders });
     };
     Popup.prototype.updateState = function (tabManager) {
         this.setTabFolders(tabManager.tabFolders);
@@ -1069,7 +1151,8 @@ var Popup = /** @class */ (function (_super) {
     Popup.prototype.render = function () {
         var _this = this;
         var tabManager = this.props.tabManager;
-        var _a = this.state, tabFolders = _a.tabFolders, activeTabs = _a.activeTabs, warning = _a.warning;
+        var _a = this.state, tabFolders = _a.tabFolders, warning = _a.warning;
+        var activeTabs = tabManager.activeTabs;
         var actions = [
             {
                 title: 'New folder',
@@ -1134,13 +1217,6 @@ var Popup = /** @class */ (function (_super) {
                         var folderTab = tabManager.getTabFromEvent(event, folder.tabs, constants_1.DATA_TAB_ID_ATTRIBUTE_NAME);
                         if (folderTab) {
                             tabManager_1.TabFolder.deleteTabStatic(folder, folderTab);
-                        }
-                    }
-                    else {
-                        var activeTab_1 = tabManager.getTabFromEvent(event, activeTabs, constants_1.DATA_TAB_ID_ATTRIBUTE_NAME);
-                        if (activeTab_1) {
-                            var tabs = activeTabs.filter(function (_tab) { return activeTab_1.id !== _tab.id; });
-                            _this.setActiveTabs(tabs);
                         }
                     }
                     _this.updateState(tabManager);
