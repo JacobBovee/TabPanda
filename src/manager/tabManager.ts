@@ -1,5 +1,4 @@
 import { findParentWithMatchingAttribute } from "../utils";
-import Tab from "../views/components/tab";
 
 interface ITabManagerState {
     tabFolders: TabFolder[];

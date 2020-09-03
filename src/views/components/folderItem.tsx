@@ -5,6 +5,7 @@ import Tab from './tab';
 
 interface IProps {
     folder: TabFolder;
+    hideFolder?: true;
     updateFolder?: (folder: TabFolder) => void;
     getTabById: (id: number) => chrome.tabs.Tab | undefined;
 }
@@ -110,8 +111,8 @@ export default class FolderItem extends Component<IProps, IState> {
 
     render() {
         const { collapsed } = this.state;
-        const { folder } = this.props;
-        if (folder.id === -1) {
+        const { folder, hideFolder } = this.props;
+        if (folder.id === -1 || hideFolder) {
             return (<ul>{folder.tabs.map((tab) => <Tab updateFolder={this.updateFolder} folder={folder} tab={tab} />)}</ul>)
         }
 

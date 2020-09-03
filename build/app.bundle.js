@@ -424,7 +424,7 @@ if (POPUP_APP_ID_ELEMENT) {
     var manager_1 = new tabManager_1.TabManager();
     manager_1.init(renderCb_1);
     chrome.storage.onChanged.addListener(function (changes, namespace) {
-        if (namespace === 'local' && changes.tabManager) {
+        if (namespace === 'local' && changes[manager_1.currentWindowName()]) {
             manager_1.init(renderCb_1);
         }
     });
@@ -448,7 +448,7 @@ if (FOLDER_APP_ID_ELEMENT) {
     var manager_2 = new tabManager_1.TabManager();
     manager_2.init(renderCb_2);
     chrome.storage.onChanged.addListener(function (changes, namespace) {
-        if (namespace === 'local' && changes.tabManager) {
+        if (namespace === 'local' && changes[manager_2.currentWindowName()]) {
             manager_2.init(renderCb_2);
         }
     });
@@ -702,8 +702,8 @@ var FolderItem = /** @class */ (function (_super) {
     FolderItem.prototype.render = function () {
         var _this = this;
         var collapsed = this.state.collapsed;
-        var folder = this.props.folder;
-        if (folder.id === -1) {
+        var _a = this.props, folder = _a.folder, hideFolder = _a.hideFolder;
+        if (folder.id === -1 || hideFolder) {
             return (preact_1.h("ul", null, folder.tabs.map(function (tab) { return preact_1.h(tab_1.default, { updateFolder: _this.updateFolder, folder: folder, tab: tab }); })));
         }
         return (preact_1.h("div", { onDragOver: function (event) {
@@ -838,7 +838,6 @@ var Tab = /** @class */ (function (_super) {
                     var target = ev.target;
                     var targetId = target.getAttribute('data-folder');
                     if (targetId && parseInt(targetId) !== folder.id) {
-                        debugger;
                         folder.deleteTab(tab);
                         updateFolder();
                     }
@@ -879,19 +878,15 @@ var TabList = /** @class */ (function (_super) {
     function TabList(props) {
         var _this = _super.call(this, props) || this;
         _this.getTabById = _this.getTabById.bind(_this);
-        _this.updateFolder = _this.updateFolder.bind(_this);
         return _this;
     }
     TabList.prototype.getTabById = function (id) {
         var allTabs = this.props.allTabs;
         return allTabs.find(function (tab) { return tab.id === id; });
     };
-    TabList.prototype.updateFolder = function () {
-        this.forceUpdate();
-    };
     TabList.prototype.render = function () {
-        var folder = this.props.folder;
-        return preact_1.h(folderItem_1.default, { getTabById: this.getTabById, folder: folder });
+        var _a = this.props, folder = _a.folder, hideFolder = _a.hideFolder;
+        return preact_1.h(folderItem_1.default, { hideFolder: hideFolder, getTabById: this.getTabById, folder: folder });
     };
     return TabList;
 }(preact_1.Component));
@@ -952,7 +947,7 @@ var TabTree = /** @class */ (function (_super) {
                 tabFolders && tabFolders.map(function (folder) {
                     return preact_1.h(tabList_1.default, { folder: folder, allTabs: _this.allTabs() });
                 }),
-                activeTabs && preact_1.h(tabList_1.default, { folder: activeTabs, allTabs: this.allTabs() }))));
+                activeTabs && preact_1.h(tabList_1.default, { folder: activeTabs, allTabs: this.allTabs(), hideFolder: true }))));
     };
     return TabTree;
 }(preact_1.Component));
@@ -1032,7 +1027,6 @@ var Folder = /** @class */ (function (_super) {
         var _this = this;
         var tabManager = this.state.tabManager;
         var tabFolder = this.getFolder();
-        var activeTabs = tabManager.activeTabs;
         var actions = [
             {
                 title: 'Restore tab',
@@ -1077,7 +1071,7 @@ var Folder = /** @class */ (function (_super) {
                         preact_1.h(icon_1.default, { type: "folder" }),
                         " ",
                         tabFolder.name) }),
-                preact_1.h(tabTree_1.default, { activeTabs: activeTabs }),
+                preact_1.h(tabTree_1.default, { activeTabs: tabFolder }),
                 preact_1.h(contextMenu_1.default, { actions: actions })));
         }
     };

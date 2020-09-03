@@ -5,6 +5,7 @@ import FolderItem from './folderItem';
 interface IProps {
     folder: TabFolder;
     allTabs: chrome.tabs.Tab[];
+    hideFolder?: true;
 }
 
 export default class TabList extends Component<IProps, {}> {
@@ -12,7 +13,6 @@ export default class TabList extends Component<IProps, {}> {
         super(props);
 
         this.getTabById = this.getTabById.bind(this);
-        this.updateFolder = this.updateFolder.bind(this);
     }
 
     getTabById(id: number) {
@@ -20,13 +20,9 @@ export default class TabList extends Component<IProps, {}> {
         return allTabs.find((tab) => tab.id === id);
     }
 
-    updateFolder() {
-        this.forceUpdate();
-    }
-
     render() {
-        const { folder } = this.props;
+        const { folder, hideFolder } = this.props;
 
-        return <FolderItem getTabById={this.getTabById} folder={folder} />        
+        return <FolderItem hideFolder={hideFolder} getTabById={this.getTabById} folder={folder} />        
     }
 }

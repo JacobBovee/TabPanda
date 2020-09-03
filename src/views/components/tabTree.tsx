@@ -48,7 +48,7 @@ export default class TabTree extends Component<IProps, IState> {
                     {tabFolders && tabFolders.map((folder) => {
                         return <TabList folder={folder} allTabs={this.allTabs()} />
                     })}
-                    {activeTabs && <TabList folder={activeTabs} allTabs={this.allTabs()} />}
+                    {activeTabs && <TabList folder={activeTabs} allTabs={this.allTabs()} hideFolder={true} />}
                 </ul>
             </div>
         )

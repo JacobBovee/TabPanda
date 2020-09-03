@@ -25,7 +25,6 @@ export default class Tab extends Component<IProps, {}> {
                             const target = ev.target as Element;
                             const targetId = target.getAttribute('data-folder');
                             if (targetId && parseInt(targetId) !== folder.id) {
-                                debugger;
                                 folder.deleteTab(tab);
                                 updateFolder();
                             }

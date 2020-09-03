@@ -18,7 +18,7 @@ if (POPUP_APP_ID_ELEMENT) {
     manager.init(renderCb);
 
     chrome.storage.onChanged.addListener((changes, namespace) => {
-        if (namespace === 'local' && changes.tabManager) {
+        if (namespace === 'local' && changes[manager.currentWindowName()]) {
             manager.init(renderCb);
         }
     });
@@ -45,7 +45,7 @@ if (FOLDER_APP_ID_ELEMENT) {
     manager.init(renderCb);
 
     chrome.storage.onChanged.addListener((changes, namespace) => {
-        if (namespace === 'local' && changes.tabManager) {
+        if (namespace === 'local' && changes[manager.currentWindowName()]) {
             manager.init(renderCb);
         }
     });
