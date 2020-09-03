@@ -1,5 +1,4 @@
 import { findParentWithMatchingAttribute } from "../utils";
-import { DATA_TAB_ID_ATTRIBUTE_NAME } from "../constants";
 
 interface ITabManagerState {
     tabFolders: TabFolder[];
@@ -45,6 +44,15 @@ export class TabManager {
                 }
             });
         });
+    }
+
+    public getFolderTabs(_cb: (tabs: chrome.tabs.Tab[]) => void) {
+        const cb = (tabs: chrome.tabs.Tab[]) => {
+            const folderTabs = tabs.filter((tab) => tab.url?.includes('folder.html'));
+            _cb(folderTabs);
+        }
+
+        TabManager.getActiveTabs(cb);
     }
 
     public collapseTabs(tabs: chrome.tabs.Tab[]) {
@@ -108,9 +116,34 @@ export class TabManager {
         }, cb);
     }
 
+    public removeTabByFolderId(id: number) {
+        const cb = (tabs: chrome.tabs.Tab[]) => {
+            tabs.map((tab) => {
+                if (this.getFolderIdFromTab(tab) === id) {
+                    this.collapseTab(tab);
+                }
+            });
+        }
+        this.getFolderTabs(cb);
+    }
+
+    public cleanupFolders() {
+        const cb = (folderTabs: chrome.tabs.Tab[]) => {
+            folderTabs.forEach((folderTab) => {
+                const id = this.getFolderIdFromTab(folderTab);
+                if (id && !this.getTabFolderById(id)) {
+                    this.collapseTab(folderTab);
+                }
+            });
+        }
+
+        this.getFolderTabs(cb);
+    }
+
     public deleteFolder(folder: TabFolder) {
         const index = this.tabFolders.indexOf(folder);
         this.tabFolders.splice(index, 1);
+        this.removeTabByFolderId(folder.id);
     }
 
     public getTabFolderById(id: number) {
@@ -169,6 +202,7 @@ export class TabManager {
                 false
             );
             await TabManager.getActiveTabs(activeTabsCb, true); 
+            await this.cleanupFolders();
         }
     }
 

@@ -96,9 +96,8 @@ export default class Popup extends Component<IProps, IState> {
                 onClick: (event: MouseEvent) => {
                     const folder = tabManager.getFolderFromEvent(event);
                     if (folder) {
-                        TabFolder.restoreAllStatic(folder);
+                        tabManager.restoreFolder(folder);
                         this.updateState(tabManager);
-                        tabManager.store();
                     }
                 },
                 contexts: [{
