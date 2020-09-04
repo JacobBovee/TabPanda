@@ -104,6 +104,7 @@ export default class Popup extends Component<IProps, IState> {
                     if (folder) {
                         tabManager.deleteFolder(folder);
                         this.updateState(tabManager);
+                        tabManager.store();
                     }
                 },
                 contexts: [{

@@ -185,7 +185,7 @@ li.tab span {
 
 /** Context menu */
 .context-menu {
-    width: 140px;
+    width: 160px;
     background-color: #2d2e31;
     color: white;
     box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.75);    border-radius: 2px;

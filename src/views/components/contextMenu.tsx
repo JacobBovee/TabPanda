@@ -46,17 +46,32 @@ export default class ContextMenu extends Component<IProps, IState> {
         return isContextClick;
     }
 
+    calculateMenuCoords(x: number, y: number) {
+        const menu = document.querySelector('div#contextMenu');
+        if (menu) {
+            let menuWidth = menu.clientWidth;
+            let menuHeight = menu.clientHeight;
+
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+
+            if ((windowWidth - x) < menuWidth) {
+                x = (windowWidth - menuWidth) - 10;
+            }
+            if ((windowHeight - y) < menuHeight) {
+                y = (windowHeight - menuHeight) - 10;
+            }
+        }
+        this.setState({ x, y });
+    }
+
     setContextMenu(event: MouseEvent) {
         event.preventDefault();
-        const mouseX = event.clientX;
-        const mouseY = event.clientY;
 
         this.setState({
             visible: true,
-            x: mouseX,
-            y: mouseY,
             targetEvent: event
-        });
+        }, () => this.calculateMenuCoords(event.clientX, event.clientY));
     }
 
     componentDidMount() {
@@ -67,7 +82,7 @@ export default class ContextMenu extends Component<IProps, IState> {
         });
 
         document.addEventListener('click', (event: MouseEvent) => {
-            const contextMenu = document.querySelector('div#contextMenu');
+            const contextMenu = document.querySelector('div#contextMenuOverlay');
             if (contextMenu && !contextMenu.contains(event.target as Element)) {
                 event.preventDefault();
                 this.resetState();
@@ -108,9 +123,9 @@ export default class ContextMenu extends Component<IProps, IState> {
         };
 
         return (
-            <div className='context-menu-overlay' id='contextMenu'>
+            <div className='context-menu-overlay' id='contextMenuOverlay'>
                 {visible && targetEvent &&
-                <div className='context-menu' style={style}>
+                <div className='context-menu' style={style} id="contextMenu">
                     <ul>
                         {this.filterActionsByContexts(actions).map((action) =>
                             <li
