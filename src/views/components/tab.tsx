@@ -5,7 +5,7 @@ import { TabFolder, TabManager } from '../../manager/tabManager';
 
 interface IProps {
     tab: chrome.tabs.Tab;
-    folder?: TabFolder;
+    folder: TabFolder;
     updateFolder: () => void;
 }
 
@@ -16,23 +16,24 @@ export default class Tab extends Component<IProps, {}> {
         const dataAttributes = { [DATA_TAB_ID_ATTRIBUTE_NAME]: tab.id };
         
         return (
-                <li
-                    draggable={true}
-                    onDragStart={(ev: DragEvent) => tab.id && ev.dataTransfer?.setData('tabId', tab.id.toString())}
-                    onDrag={(ev: DragEvent) => {}}
-                    onDragEnd={(ev: DragEvent) => {
-                        if (folder && ev.target) {
-                            const target = ev.target as Element;
-                            const targetId = target.getAttribute('data-folder');
-                            if (targetId && parseInt(targetId) !== folder.id) {
-                                folder.deleteTab(tab);
-                                updateFolder();
-                            }
+            <li
+                onDblClick={() => folder && TabFolder.restoreStatic(folder, tab)}
+                draggable={true}
+                onDragStart={(ev: DragEvent) => tab.id && ev.dataTransfer?.setData('tabId', tab.id.toString())}
+                onDrag={(ev: DragEvent) => {}}
+                onDragEnd={(ev: DragEvent) => {
+                    if (folder && ev.target) {
+                        const target = ev.target as Element;
+                        const targetId = target.getAttribute('data-folder');
+                        if (targetId && parseInt(targetId) !== folder.id) {
+                            folder.deleteTab(tab);
+                            updateFolder();
                         }
-                    }}
-                    class="tab" {...dataAttributes}>
-                    <span>{ico}{tab.title}</span><Icon className='more' type={'more'} />
-                </li>
+                    }
+                }}
+                class="tab" {...dataAttributes}>
+                <span>{ico}{tab.title}</span><Icon className='more' type={'more'} />
+            </li>
         );
     }
 }
