@@ -276,6 +276,9 @@ var TabManager = /** @class */ (function () {
     TabManager.prototype.currentWindowName = function () {
         return "tm_" + this.currentWindow;
     };
+    TabManager.prototype.compareTabStateToManager = function (state) {
+        return state.tabFolders == this.tabFolders;
+    };
     TabManager.prototype.getStoredTabManager = function (cb) {
         var _this = this;
         var id = this.currentWindowName();
@@ -314,7 +317,7 @@ var TabFolder = /** @class */ (function () {
         return this.tabs.length;
     };
     TabFolder.prototype.setTabs = function (tabs) {
-        this.tabs = __spreadArrays(this.tabs, tabs);
+        this.tabs = __spreadArrays(tabs);
     };
     TabFolder.prototype.deleteTab = function (argTab) {
         var tabs = this.tabs.filter(function (tab) { return tab.id !== argTab.id; });
@@ -415,6 +418,10 @@ var folder_1 = __importDefault(require("./folder"));
 // Render popup when popup element is found
 var POPUP_APP_ID_ELEMENT = document.getElementById('App');
 if (POPUP_APP_ID_ELEMENT) {
+    window.addEventListener("beforeunload", function (e) {
+        var confirmationMessage = "\o/";
+        return confirmationMessage;
+    });
     var renderCb_1 = function (manager) {
         var state = {
             tabManager: manager
@@ -432,6 +439,11 @@ if (POPUP_APP_ID_ELEMENT) {
 // Render folder if folder element is found
 var FOLDER_APP_ID_ELEMENT = document.getElementById('folderApp');
 if (FOLDER_APP_ID_ELEMENT) {
+    window.addEventListener("beforeunload", function (e) {
+        e.preventDefault();
+        var confirmationMessage = "This folder will be deleted and you will lose your changes";
+        return confirmationMessage;
+    });
     var renderCb_2 = function (manager) {
         try {
             var folderId = parseInt(window.location.href.split('?folderId=')[1]);
@@ -596,7 +608,8 @@ var ContextMenu = /** @class */ (function (_super) {
         var style = {
             position: 'absolute',
             top: y + "px",
-            left: x + "px"
+            left: x + "px",
+            zIndex: 9999
         };
         return (preact_1.h("div", { className: 'context-menu-overlay', id: 'contextMenuOverlay' }, visible && targetEvent &&
             preact_1.h("div", { className: 'context-menu', style: style, id: "contextMenu" },

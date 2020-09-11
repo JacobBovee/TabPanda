@@ -7,6 +7,11 @@ import Folder from './folder';
 const POPUP_APP_ID_ELEMENT = document.getElementById('App');
 
 if (POPUP_APP_ID_ELEMENT) {
+    window.addEventListener("beforeunload", function (e) {
+        var confirmationMessage = "\o/";
+    
+        return confirmationMessage;
+    });
     const renderCb = (manager: TabManager) => {
         const state = {
             tabManager: manager
@@ -28,6 +33,12 @@ if (POPUP_APP_ID_ELEMENT) {
 const FOLDER_APP_ID_ELEMENT = document.getElementById('folderApp');
 
 if (FOLDER_APP_ID_ELEMENT) {
+    window.addEventListener("beforeunload", function (e) {
+        e.preventDefault();
+        var confirmationMessage = "This folder will be deleted and you will lose your changes";
+    
+        return confirmationMessage;
+    });
     const renderCb = (manager: TabManager) => {
         try {
             const folderId = parseInt(window.location.href.split('?folderId=')[1]);

@@ -201,7 +201,7 @@ export class TabManager {
         }
     }
 
-    public mountExtension(cb?: (manager: TabManager) => void) {
+    protected mountExtension(cb?: (manager: TabManager) => void) {
         const _cb = (tabManager: ITabManagerState) => {;
             if (!tabManager) {
                 this.store();
@@ -253,6 +253,10 @@ export class TabManager {
         return `tm_${this.currentWindow}`;
     }
 
+    public compareTabStateToManager(state: ITabManagerState) {
+        return state.tabFolders == this.tabFolders;
+    }
+
     protected getStoredTabManager(cb: (tabManager: ITabManagerState) => void) {
         const id = this.currentWindowName();
         chrome.storage.local.get([id], (data) => {
@@ -298,7 +302,7 @@ export class TabFolder {
     }
 
     public setTabs(tabs: chrome.tabs.Tab[]) {
-        this.tabs = [...this.tabs, ...tabs];
+        this.tabs = [...tabs];
     }
 
     public deleteTab(argTab: chrome.tabs.Tab) {

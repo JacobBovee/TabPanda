@@ -184,6 +184,9 @@ li.tab span {
 }
 
 /** Context menu */
+.context-menu-overlay {
+    z-index: 9997;
+}
 .context-menu {
     width: 160px;
     background-color: #2d2e31;
@@ -192,10 +195,12 @@ li.tab span {
     font-weight: 600;
     font-size: 1.2em;
     padding: 0px;
+    z-index: 9998;
 }
 .context-menu ul li {
     padding: 8px;
     cursor: pointer;
+    z-index: 9999;
 }
 .context-menu ul li:hover {
     background-color: #36383c;

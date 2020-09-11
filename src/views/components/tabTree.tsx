@@ -41,7 +41,6 @@ export default class TabTree extends Component<IProps, IState> {
 
     render() {
         const { tabFolders, activeTabs } = this.props;
-
         return (
             <div id="tabTree">
                 <ul class="parent">

@@ -119,7 +119,8 @@ export default class ContextMenu extends Component<IProps, IState> {
         const style = {
             position: 'absolute',
             top: `${y}px`,
-            left: `${x}px`
+            left: `${x}px`,
+            zIndex: 9999
         };
 
         return (
