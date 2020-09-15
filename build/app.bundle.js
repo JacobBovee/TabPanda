@@ -534,7 +534,8 @@ var ContextMenu = /** @class */ (function (_super) {
         _this.state = {
             x: 0,
             y: 0,
-            visible: false
+            visible: false,
+            visibleActions: []
         };
         _this.filterActionsByContexts = _this.filterActionsByContexts.bind(_this);
         return _this;
@@ -563,9 +564,12 @@ var ContextMenu = /** @class */ (function (_super) {
     ContextMenu.prototype.setContextMenu = function (event) {
         var _this = this;
         event.preventDefault();
+        var actions = this.props.actions;
+        var visibleActions = this.filterActionsByContexts(actions, event);
         this.setState({
             visible: true,
-            targetEvent: event
+            targetEvent: event,
+            visibleActions: visibleActions,
         }, function () { return _this.calculateMenuCoords(event.clientX, event.clientY); });
     };
     ContextMenu.prototype.componentDidMount = function () {
@@ -589,31 +593,25 @@ var ContextMenu = /** @class */ (function (_super) {
             });
         });
     };
-    ContextMenu.prototype.filterActionsByContexts = function (actions) {
-        var targetEvent = this.state.targetEvent;
-        if (targetEvent) {
-            var element_1 = targetEvent.target;
-            var filteredActions = actions
-                .filter(function (action) { return utils_1.elementTreeHasAnyAttributePair(element_1, action.contexts); });
-            return filteredActions;
-        }
-        else {
-            throw new Error('Target event not set');
-        }
+    ContextMenu.prototype.filterActionsByContexts = function (actions, targetEvent) {
+        var element = targetEvent.target;
+        var filteredActions = actions
+            .filter(function (action) { return utils_1.elementTreeHasAnyAttributePair(element, action.contexts); });
+        return filteredActions;
     };
     ContextMenu.prototype.render = function () {
         var _this = this;
         var actions = this.props.actions;
-        var _a = this.state, x = _a.x, y = _a.y, visible = _a.visible, targetEvent = _a.targetEvent;
+        var _a = this.state, x = _a.x, y = _a.y, visible = _a.visible, targetEvent = _a.targetEvent, visibleActions = _a.visibleActions;
         var style = {
             position: 'absolute',
             top: y + "px",
             left: x + "px",
             zIndex: 9999
         };
-        return (preact_1.h("div", { className: 'context-menu-overlay', id: 'contextMenuOverlay' }, visible && targetEvent &&
+        return (preact_1.h("div", { className: 'context-menu-overlay', id: 'contextMenuOverlay' }, visible && targetEvent && visibleActions.length &&
             preact_1.h("div", { className: 'context-menu', style: style, id: "contextMenu" },
-                preact_1.h("ul", null, this.filterActionsByContexts(actions).map(function (action) {
+                preact_1.h("ul", null, visibleActions.map(function (action) {
                     return preact_1.h("li", { className: 'conext-menu-action', onClick: function () {
                             _this.resetState();
                             action.onClick(targetEvent);
@@ -1073,7 +1071,7 @@ var Folder = /** @class */ (function (_super) {
                         class: 'tab'
                     }],
                 leftContext: {
-                    class: 'more'
+                    class: 'more-tab'
                 }
             },
             {
@@ -1090,7 +1088,7 @@ var Folder = /** @class */ (function (_super) {
                         class: 'tab'
                     }],
                 leftContext: {
-                    class: 'more'
+                    class: 'more-tab'
                 }
             }
         ];

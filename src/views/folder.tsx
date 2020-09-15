@@ -70,7 +70,7 @@ export default class Folder extends Component<IProps, IState> {
                     class: 'tab'
                 }],
                 leftContext: {
-                    class: 'more'
+                    class: 'more-tab'
                 }
             },
             {
@@ -87,7 +87,7 @@ export default class Folder extends Component<IProps, IState> {
                     class: 'tab'
                 }],
                 leftContext: {
-                    class: 'more'
+                    class: 'more-tab'
                 }
             }
         ];

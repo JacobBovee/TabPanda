@@ -17,6 +17,7 @@ interface IState {
     y: number;
     visible: boolean;
     targetEvent?: MouseEvent;
+    visibleActions: IAction[];
 }
 
 export default class ContextMenu extends Component<IProps, IState> {
@@ -25,7 +26,8 @@ export default class ContextMenu extends Component<IProps, IState> {
         this.state = {
             x: 0,
             y: 0,
-            visible: false
+            visible: false,
+            visibleActions: []
         };
 
         this.filterActionsByContexts = this.filterActionsByContexts.bind(this);
@@ -67,10 +69,13 @@ export default class ContextMenu extends Component<IProps, IState> {
 
     setContextMenu(event: MouseEvent) {
         event.preventDefault();
-
+        const { actions } = this.props;
+        const visibleActions = this.filterActionsByContexts(actions, event);
+        
         this.setState({
             visible: true,
-            targetEvent: event
+            targetEvent: event,
+            visibleActions,
         }, () => this.calculateMenuCoords(event.clientX, event.clientY));
     }
 
@@ -98,23 +103,17 @@ export default class ContextMenu extends Component<IProps, IState> {
         });
     }
 
-    filterActionsByContexts(actions: IAction[]) {
-        const { targetEvent } = this.state;
-        if (targetEvent) {
-            const element = (targetEvent.target as Element);
-            const filteredActions = actions
-                .filter((action) => elementTreeHasAnyAttributePair(element, action.contexts));
+    filterActionsByContexts(actions: IAction[], targetEvent: MouseEvent) {
+        const element = (targetEvent.target as Element);
+        const filteredActions = actions
+            .filter((action) => elementTreeHasAnyAttributePair(element, action.contexts));
 
-            return filteredActions;
-        }
-        else {
-            throw new Error('Target event not set')
-        }
+        return filteredActions;
     }
 
     render() {
         const { actions } = this.props;
-        const { x, y, visible, targetEvent } = this.state;
+        const { x, y, visible, targetEvent, visibleActions } = this.state;
 
         const style = {
             position: 'absolute',
@@ -125,10 +124,10 @@ export default class ContextMenu extends Component<IProps, IState> {
 
         return (
             <div className='context-menu-overlay' id='contextMenuOverlay'>
-                {visible && targetEvent &&
+                {visible && targetEvent && visibleActions.length &&
                 <div className='context-menu' style={style} id="contextMenu">
                     <ul>
-                        {this.filterActionsByContexts(actions).map((action) =>
+                        {visibleActions.map((action) =>
                             <li
                                 className='conext-menu-action'
                                 onClick={() => {
