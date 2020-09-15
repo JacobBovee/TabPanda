@@ -32,7 +32,7 @@ export default class Tab extends Component<IProps, {}> {
                     }
                 }}
                 class="tab" {...dataAttributes}>
-                <span>{ico}{tab.title}</span><Icon className='more' type={'more'} />
+                <span>{ico}{tab.title}</span><Icon className='more-tab' type={'more'} />
             </li>
         );
     }

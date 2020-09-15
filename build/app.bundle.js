@@ -369,7 +369,7 @@ exports.findParentWithMatchingAttribute = findParentWithMatchingAttribute;
 function elementTreeHasAttributePair(element, attribute) {
     var key = Object.keys(attribute)[0];
     var elementHasAttributePair = element.getAttribute(key);
-    if (elementHasAttributePair === null || elementHasAttributePair === void 0 ? void 0 : elementHasAttributePair.includes(attribute[key])) {
+    if (elementHasAttributePair === null || elementHasAttributePair === void 0 ? void 0 : elementHasAttributePair.split(' ').includes(attribute[key])) {
         return true;
     }
     else {
@@ -737,13 +737,15 @@ var FolderItem = /** @class */ (function (_super) {
                 event.preventDefault();
             }, onDrop: this.onTabDrop },
             preact_1.h("li", { className: "folder " + (collapsed ? 'collapsed' : ''), "data-folder": "" + folder.id },
-                preact_1.h("div", { onClick: this.toggleCollapse },
-                    preact_1.h(icon_1.default, { type: 'triangle' }),
-                    preact_1.h(icon_1.default, { type: 'folder' }),
-                    folder.editTitle ?
-                        this.inputField()
-                        :
-                            folder.name),
+                preact_1.h("div", { className: 'folder-container' },
+                    preact_1.h("span", { onClick: this.toggleCollapse },
+                        preact_1.h(icon_1.default, { type: 'triangle' }),
+                        preact_1.h(icon_1.default, { type: 'folder' }),
+                        folder.editTitle ?
+                            this.inputField()
+                            :
+                                folder.name),
+                    preact_1.h(icon_1.default, { className: 'more-folder', type: 'more' })),
                 !collapsed &&
                     preact_1.h("ul", null, folder && folder.tabs.map(function (tab) { return preact_1.h(tab_1.default, { updateFolder: _this.updateFolder, folder: folder, tab: tab }); })))));
     };
@@ -873,7 +875,7 @@ var Tab = /** @class */ (function (_super) {
             preact_1.h("span", null,
                 ico,
                 tab.title),
-            preact_1.h(icon_1.default, { className: 'more', type: 'more' })));
+            preact_1.h(icon_1.default, { className: 'more-tab', type: 'more' })));
     };
     return Tab;
 }(preact_1.Component));
@@ -1191,6 +1193,9 @@ var Popup = /** @class */ (function (_super) {
                 contexts: [{
                         id: 'tabTree'
                     }],
+                leftContext: {
+                    class: 'more-folder'
+                }
             },
             {
                 title: 'Restore folder',
@@ -1203,7 +1208,10 @@ var Popup = /** @class */ (function (_super) {
                 },
                 contexts: [{
                         class: 'folder'
-                    }]
+                    }],
+                leftContext: {
+                    class: 'more-folder'
+                }
             },
             {
                 title: 'Delete folder',
@@ -1217,7 +1225,10 @@ var Popup = /** @class */ (function (_super) {
                 },
                 contexts: [{
                         class: 'folder'
-                    }]
+                    }],
+                leftContext: {
+                    class: 'more-folder'
+                }
             },
             {
                 title: 'Restore tab',
@@ -1235,7 +1246,7 @@ var Popup = /** @class */ (function (_super) {
                         class: 'tab'
                     }],
                 leftContext: {
-                    class: 'more'
+                    class: 'more-tab'
                 }
             },
             {
@@ -1254,12 +1265,12 @@ var Popup = /** @class */ (function (_super) {
                         class: 'tab'
                     }],
                 leftContext: {
-                    class: 'more'
+                    class: 'more more-tab'
                 }
             }
         ];
         return (preact_1.h("div", { id: "wrapper" },
-            preact_1.h(header_1.default, { title: 'Edit tabs', id: 'collapseActiveBtn', actionTitle: 'Collapse Action', actionFn: this.collapseActiveAction }),
+            preact_1.h(header_1.default, { title: 'Edit tabs', id: 'collapseActiveBtn', actionTitle: 'Collapse Active', actionFn: this.collapseActiveAction }),
             preact_1.h(tabTree_1.default, { tabFolders: tabFolders, activeTabs: activeTabs }),
             preact_1.h(actionItems_1.default, { saveAction: this.saveAction, cancelAction: this.cancelAction, newFolderAction: this.newFolderAction }),
             preact_1.h(contextMenu_1.default, { actions: actions }),

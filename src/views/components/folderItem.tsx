@@ -127,17 +127,21 @@ export default class FolderItem extends Component<IProps, IState> {
                 <li
                     className={`folder ${collapsed ? 'collapsed' : ''}`}
                     data-folder={`${folder.id}`}
-                ><div onClick={this.toggleCollapse}>
-                    <Icon type='triangle' />
-                    <Icon type='folder' />
-                    {folder.editTitle ?
-                        this.inputField()
-                        :
-                        folder.name
-                    }</div>
+                ><div className='folder-container'>
+                    <span onClick={this.toggleCollapse}>
+                        <Icon type='triangle' />
+                        <Icon type='folder' />
+                        {folder.editTitle ?
+                            this.inputField()
+                            :
+                            folder.name
+                        }
+                    </span>
+                    <Icon className={'more-folder'} type={'more'} />
+                    </div>
                     {!collapsed && 
                         <ul>
-                            {folder && folder.tabs.map((tab) => <Tab updateFolder={this.updateFolder} folder={folder} tab={tab} />)}
+                            {folder &&folder.tabs.map((tab) => <Tab updateFolder={this.updateFolder} folder={folder} tab={tab} />)}
                         </ul>}
                 </li>
             </div>

@@ -20,7 +20,7 @@ export function findParentWithMatchingAttribute(element: Element, attribute: str
 export function elementTreeHasAttributePair(element: Element, attribute: Map<string>): boolean {
     const key = Object.keys(attribute)[0];
     const elementHasAttributePair = element.getAttribute(key);
-    if (elementHasAttributePair?.includes(attribute[key])) {
+    if (elementHasAttributePair?.split(' ').includes(attribute[key])) {
         return true;
     }
     else {

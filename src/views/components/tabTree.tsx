@@ -1,7 +1,6 @@
 import { Component, h } from 'preact';
 import TabList from './tabList';
 import { TabFolder } from '../../manager/tabManager';
-import ContextMenu from './contextMenu';
 
 interface IProps {
     tabFolders?: TabFolder[];

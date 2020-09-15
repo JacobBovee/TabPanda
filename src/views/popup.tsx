@@ -83,6 +83,9 @@ export default class Popup extends Component<IProps, IState> {
                 contexts: [{
                     id: 'tabTree'
                 }],
+                leftContext: {
+                    class: 'more-folder'
+                }
             },
             {
                 title: 'Restore folder',
@@ -95,7 +98,10 @@ export default class Popup extends Component<IProps, IState> {
                 },
                 contexts: [{
                     class: 'folder'
-                }]
+                }],
+                leftContext: {
+                    class: 'more-folder'
+                }
             },
             {
                 title: 'Delete folder',
@@ -109,7 +115,10 @@ export default class Popup extends Component<IProps, IState> {
                 },
                 contexts: [{
                     class: 'folder'
-                }]
+                }],
+                leftContext: {
+                    class: 'more-folder'
+                }
             },
             {
                 title: 'Restore tab',
@@ -127,7 +136,7 @@ export default class Popup extends Component<IProps, IState> {
                     class: 'tab'
                 }],
                 leftContext: {
-                    class: 'more'
+                    class: 'more-tab'
                 }
             },
             {
@@ -146,14 +155,14 @@ export default class Popup extends Component<IProps, IState> {
                     class: 'tab'
                 }],
                 leftContext: {
-                    class: 'more'
+                    class: 'more more-tab'
                 }
             }
         ];
 
         return (
             <div id="wrapper">
-                <Header title='Edit tabs' id={'collapseActiveBtn'} actionTitle={'Collapse Action'} actionFn={this.collapseActiveAction} />
+                <Header title='Edit tabs' id={'collapseActiveBtn'} actionTitle={'Collapse Active'} actionFn={this.collapseActiveAction} />
                 <TabTree tabFolders={tabFolders} activeTabs={activeTabs} />
                 <ActionItems
                     saveAction={this.saveAction}

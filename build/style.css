@@ -108,6 +108,22 @@ header button {
     padding: 5px 3px;
     width: 100%;
     cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+}
+
+#tabTree ul.parent li.folder div .more-icon {
+    right: 5px;
+    position: relative;
+    cursor: pointer;
+}
+
+#tabTree ul.parent li.folder div span {
+    display: flex;
+    align-items: center;
+    padding: 5px 3px;
+    width: 100%;
+    cursor: pointer;
 }
 
 #tabTree ul.parent li i {
